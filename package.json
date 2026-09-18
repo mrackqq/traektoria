@@ -1,0 +1,29 @@
+{
+  "name": "traektoria",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ТРАЕКТОРИЯ — персональный маршрут поступления. Мост к мечте и стресс-тест маршрута.",
+  "scripts": {
+    "dev": "node scripts/next-run.mjs dev",
+    "build": "node scripts/next-run.mjs build",
+    "start": "node scripts/next-run.mjs start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import ./scripts/register-ts-resolve.mjs --test --experimental-strip-types \"src/**/*.test.ts\""
+  },
+  "dependencies": {
+    "next": "15.5.3",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.3",
+    "@types/react": "19.1.9",
+    "@types/react-dom": "19.1.7",
+    "typescript": "5.7.3"
+  },
+  "engines": {
+    "node": ">=20.11"
+  }
+}

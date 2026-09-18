@@ -1,0 +1,16 @@
+.data/
+.next/
+.next-build/
+node_modules/
+tsconfig.tsbuildinfo
+next-env.d.ts
+
+# Секреты: ключ OpenRouter живёт только в окружении и не попадает в репозиторий.
+.env
+.env.local
+.env.*.local
+
+# Внутренние рабочие документы: аудит дефектов и ревью отдельного ТЗ.
+# Лежат локально, в репозиторий для сдачи не идут.
+CASE2_AUDIT.md
+TZ-REVIEW.md

@@ -42,6 +42,21 @@ const SUBJECT: Record<string, string> = {
   geography: 'география',
   history: 'история Казахстана',
   english: 'английский язык',
+
+  // Профильные предметы ЕНТ сверх школьного набора. «История Казахстана» —
+  // обязательный блок ЕНТ, а профильный предмет — «всемирная история»:
+  // это разные вещи, и раньше они сливались в одну.
+  world_history: 'всемирная история',
+  law_basics: 'основы права',
+  foreign_language: 'иностранный язык',
+  kazakh_language: 'казахский язык',
+  kazakh_literature: 'казахская литература',
+  russian_language: 'русский язык',
+  russian_literature: 'русская литература',
+  kazakh_or_russian_language: 'казахский или русский язык',
+  kazakh_or_russian_literature: 'казахская или русская литература',
+  physics_or_biology: 'физика или биология',
+  creative_exam: 'творческий экзамен',
 };
 
 const DOCUMENT: Record<string, string> = {
@@ -52,6 +67,9 @@ const DOCUMENT: Record<string, string> = {
 };
 
 const SCALE: Record<string, string> = {
+  nuet_0_240: 'шкала NUET 0–240',
+  sat_400_1600: 'шкала SAT 400–1600',
+  act_1_36: 'шкала ACT 1–36',
   gpa_5: 'пятибалльная шкала',
   ielts_0_9: 'шкала IELTS 0–9',
   toefl_0_120: 'шкала TOEFL 0–120',
@@ -63,6 +81,9 @@ const EXAM: Record<string, string> = {
   IELTS: 'IELTS Academic',
   TOEFL: 'TOEFL iBT',
   'ЕНТ': 'ЕНТ',
+  NUET: 'NUET — вступительный экзамен Nazarbayev University',
+  SAT: 'SAT',
+  ACT: 'ACT',
 };
 
 const CEFR: Record<string, string> = {

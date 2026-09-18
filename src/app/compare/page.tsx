@@ -59,10 +59,11 @@ export default async function ComparePage({
   return (
     <div className="stack">
       <header className="stack-tight">
-        <h1>Сравнение</h1>
+        <p className="card__eyebrow">Шаг 2 · Выберите между вариантами</p>
+        <h1>Сравните программы</h1>
         <p className="lede">
-          Сравниваются пути подачи: у гранта и платного приёма разные условия, сроки
-          и расходы, поэтому они сопоставляются как разные варианты.
+          Отметьте минимум два варианта. Сопоставьте расходы, язык и требования,
+          затем откройте понравившуюся программу и выберите её своей целью.
         </p>
       </header>
 
@@ -152,6 +153,7 @@ export default async function ComparePage({
                   </div>
                 );
               })}
+              <Link className="btn btn--secondary" href={`/programs/${item.assessment.admissionPathId}`}>Открыть программу и выбрать</Link>
             </article>
           ))}
         </section>

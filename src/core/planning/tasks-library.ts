@@ -91,7 +91,16 @@ const TOEFL_SESSIONS: PlainDate[] = [
   '2027-03-20', '2027-04-24', '2027-05-22', '2027-06-19',
 ];
 
+/**
+ * Сессии ЕНТ по государственному календарю: мартовский этап и две попытки
+ * основного. Только основной этап идёт в конкурс на грант.
+ */
 const ENT_SESSIONS: PlainDate[] = ['2027-03-20', '2027-05-15', '2027-06-20'];
+
+/** NUET, SAT и ACT: даты сессий публикуются организаторами отдельно. */
+const NUET_SESSIONS: PlainDate[] = ['2027-03-21', '2027-04-18'];
+const SAT_SESSIONS: PlainDate[] = ['2026-12-05', '2027-03-13', '2027-05-01', '2027-06-05'];
+const ACT_SESSIONS: PlainDate[] = ['2026-12-12', '2027-04-10', '2027-06-12'];
 
 /* ------------------------------------------------------------------ */
 /* Шаблоны                                                             */
@@ -190,6 +199,52 @@ export const TASK_TEMPLATES: readonly TaskTemplate[] = [
     fromMajor(2_500, 'KZT'),
     'Балл ЕНТ не ниже требуемого',
   ),
+
+  ...examChain(
+    'nuet', 'NUET',
+    { min: 90, max: 180 }, { min: 150, max: 300 },
+    NUET_SESSIONS, { min: 14, max: 30 },
+    fromMajor(15_000, 'KZT'),
+    'Общий балл не ниже требуемого и не ниже минимума по каждому предмету',
+  ),
+  ...examChain(
+    'sat', 'SAT',
+    { min: 90, max: 180 }, { min: 150, max: 300 },
+    SAT_SESSIONS, { min: 10, max: 20 },
+    fromMajor(50_000, 'KZT'),
+    'Общий балл не ниже требуемого',
+  ),
+  ...examChain(
+    'act', 'ACT',
+    { min: 90, max: 180 }, { min: 150, max: 300 },
+    ACT_SESSIONS, { min: 10, max: 20 },
+    fromMajor(50_000, 'KZT'),
+    'Composite score не ниже требуемого',
+  ),
+
+  {
+    /**
+     * Выбор пары профильных предметов — первое решение всей кампании.
+     *
+     * Пара закреплена за специальностью, определяет доступный список программ
+     * и после первой попытки основного этапа не меняется. Ставить её в один
+     * ряд с подготовкой нельзя: сначала решение, потом подготовка под него.
+     */
+    semanticKey: 'ent:choose_pair',
+    kind: 'verify_data',
+    title: 'Выбрать пару профильных предметов ЕНТ',
+    requiredOutcome: 'Пара выбрана и указана в профиле',
+    completionCriterion: 'Пара соответствует группе образовательных программ выбранной специальности.',
+    instruction:
+      'Сверьтесь с перечнем групп образовательных программ: пара закреплена за ' +
+      'специальностью. Все четыре строки заявления на грант должны быть из одной ' +
+      'пары, а менять её после первой попытки основного этапа нельзя.',
+    durationDays: { min: 1, max: 7 },
+    effortHours: { min: 1, max: 3 },
+    externalWaitDays: { min: 0, max: 0 },
+    estimateBasis: 'catalog_default',
+    dependsOnKeys: [],
+  },
 
   {
     semanticKey: 'doc:school_certificate',
@@ -349,6 +404,9 @@ export const EXAM_KEY_BY_KIND: Readonly<Record<string, string>> = {
   IELTS: 'ielts',
   TOEFL: 'toefl',
   'ЕНТ': 'ent',
+  NUET: 'nuet',
+  SAT: 'sat',
+  ACT: 'act',
 };
 
 export const EXAM_KIND_BY_KEY: Readonly<Record<string, string>> = Object.fromEntries(
@@ -411,7 +469,12 @@ export function templatesForCountingKey(
 
   if (countingKey.startsWith('lang:ielts')) return chain('ielts');
   if (countingKey.startsWith('lang:toefl')) return chain('toefl');
+  // Пара выбирается до подготовки: это отдельное решение, а не часть сдачи.
+  if (countingKey === 'exam:ent:pair') return ['ent:choose_pair', ...chain('ent')];
   if (countingKey.startsWith('exam:ent')) return chain('ent');
+  if (countingKey.startsWith('exam:nuet')) return chain('nuet');
+  if (countingKey.startsWith('exam:sat')) return chain('sat');
+  if (countingKey.startsWith('exam:act')) return chain('act');
   if (countingKey === 'doc:school_certificate') return ['doc:school_certificate'];
   if (countingKey === 'doc:certified_translation') {
     return ['doc:school_certificate', 'doc:certified_translation'];
@@ -439,6 +502,9 @@ const EXAM_SCALE_BY_KEY: Readonly<Record<string, { scaleId: string; components: 
   ielts: { scaleId: 'ielts_0_9', components: ['writing'] },
   toefl: { scaleId: 'toefl_0_120', components: [] },
   ent: { scaleId: 'ent_0_140', components: [] },
+  nuet: { scaleId: 'nuet_0_240', components: ['math', 'critical_thinking'] },
+  sat: { scaleId: 'sat_400_1600', components: [] },
+  act: { scaleId: 'act_1_36', components: [] },
 };
 
 export function expectedResultFor(semanticKey: string): ExpectedResult | null {

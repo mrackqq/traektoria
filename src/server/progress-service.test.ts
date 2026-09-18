@@ -19,6 +19,7 @@ const dataDir = await mkdtemp(path.join(tmpdir(), 'trajectory-test-'));
 process.env.TRAJECTORY_DATA_DIR = dataDir;
 
 // Каталог данных читается модулем при загрузке, поэтому импорт динамический.
+const { scaleForExam } = await import('@core/kernel/scales.ts');
 const service = await import('./progress-service.ts');
 const { getStore } = await import('./file-store.ts');
 
@@ -177,9 +178,13 @@ test('TASK-02/TASK-03/TASK-06: результат создаёт ревизию 
   const resultTask = before.taskViews.find((v) => v.task.template.kind === 'await_result');
   assert.ok(resultTask, 'в маршруте есть ожидание результата экзамена');
 
-  const examKind = resultTask.task.semanticKey.split(':')[0]!.toUpperCase() === 'ENT'
-    ? 'ЕНТ'
-    : resultTask.task.semanticKey.split(':')[0]!.toUpperCase();
+  // Шкала берётся из реестра по экзамену задачи, а не зашивается: какой
+  // именно результат ждёт маршрут, зависит от активной цели.
+  const key = resultTask.task.semanticKey.split(':')[0]!.toUpperCase();
+  const examKind = key === 'ENT' ? 'ЕНТ' : key;
+  const scale = scaleForExam(examKind);
+  assert.ok(scale, `шкала экзамена ${examKind} есть в реестре`);
+  const overall = scale.max - scale.step;
 
   const metBefore = before.counters.conditions.met;
 
@@ -190,8 +195,8 @@ test('TASK-02/TASK-03/TASK-06: результат создаёт ревизию 
     result: {
       kind: 'exam_score',
       examKind,
-      scaleId: 'ent_0_140',
-      overall: 138,
+      scaleId: scale.id,
+      overall,
       // Опубликованный результат не может быть датирован будущим: сервер
       // отличает факт от намерения именно по дате.
       takenOn: '2026-09-10',
@@ -212,7 +217,7 @@ test('TASK-02/TASK-03/TASK-06: результат создаёт ревизию 
   const after = await service.loadSession(OWNER);
   assert.equal(after.profile.revision, before.profile.revision + 1);
   assert.ok(
-    after.profile.exams.some((e) => e.examKind === examKind && e.overall === 138),
+    after.profile.exams.some((e) => e.examKind === examKind && e.overall === overall),
     'факт записан в профиль',
   );
   assert.ok(
@@ -226,7 +231,7 @@ test('TASK-02/TASK-03/TASK-06: результат создаёт ревизию 
   assert.ok(state.audit.some((a) => a.action === 'task_result_recorded'));
   assert.ok(state.outbox.some((m) => m.type === 'profile.fact_changed'));
   assert.ok(
-    state.outbox.every((m) => !JSON.stringify(m.payload).includes('138')),
+    state.outbox.every((m) => !JSON.stringify(m.payload).includes(String(overall))),
     'балл не попадает в событие outbox',
   );
 });

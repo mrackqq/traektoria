@@ -13,8 +13,6 @@
 
 import type { RecalcSummary } from '@core/profile/changes';
 
-import { Badge } from './ui';
-
 export function ChangesBlock({
   summary,
   profileRevision,
@@ -25,6 +23,11 @@ export function ChangesBlock({
 }) {
   if (!summary) return null;
   if (summary.profileRevisionAfter !== profileRevision) return null;
+
+  // Первое заполнение и правку существующего ответа показываем по-разному:
+  // «не заполнено → 2027» выглядит как дефект профиля, а не как ответ.
+  const added = summary.changes.filter((c) => c.firstTime);
+  const edited = summary.changes.filter((c) => !c.firstTime);
 
   const recommendationsChanged =
     summary.fitBefore !== summary.fitAfter ||
@@ -40,25 +43,32 @@ export function ChangesBlock({
       <p className="card__eyebrow">После изменения анкеты</p>
       <h2 id="changes-heading">Что изменилось</h2>
 
-      <ul className="badge-row">
-        <li>
-          <Badge tone="neutral" glyph="↺">
-            Ревизия профиля {summary.profileRevisionBefore} → {summary.profileRevisionAfter}
-          </Badge>
-        </li>
-      </ul>
+      <p className="small muted">Подбор пересчитан по вашим новым ответам.</p>
 
-      {summary.changes.length > 0 ? (
-        <div className="stack-tight">
-          <h3>Ваши ответы</h3>
+      {added.length > 0 ? (
+        <details className="answer-changes">
+          <summary>Заполнено впервые · {added.length} ответов</summary>
           <ul className="stack-tight small">
-            {summary.changes.map((c) => (
+            {added.map((c) => (
               <li key={c.fieldId}>
-                <strong>{c.label}:</strong> {c.before} → {c.after}
+                <strong>{c.label}:</strong> {c.after}
               </li>
             ))}
           </ul>
-        </div>
+        </details>
+      ) : null}
+
+      {edited.length > 0 ? (
+        <details className="answer-changes">
+          <summary>Изменено · {edited.length} ответов</summary>
+          <ul className="stack-tight small">
+            {edited.map((c) => (
+              <li key={c.fieldId}>
+                <strong>{c.label}:</strong> было «{c.before}», стало «{c.after}»
+              </li>
+            ))}
+          </ul>
+        </details>
       ) : null}
 
       {recommendationsChanged ? (

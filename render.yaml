@@ -1,0 +1,27 @@
+# Развёртывание на Render: контейнер с постоянным диском.
+#
+# Диск обязателен: анкета и прогресс живут в файлах, и без тома состояние
+# терялось бы при каждом перезапуске — а кейс отдельно оценивает сохранение
+# состояния.
+#
+# OPENROUTER_API_KEY задаётся в интерфейсе Render (sync: false), в репозиторий
+# он не попадает. Без ключа сервис работает: диагностика и маршрут считаются
+# правилами, а объяснения модели просто не показываются.
+services:
+  - type: web
+    name: traektoria
+    runtime: docker
+    plan: starter
+    healthCheckPath: /
+    autoDeploy: false
+    envVars:
+      - key: TRAJECTORY_DATA_DIR
+        value: /data
+      - key: OPENROUTER_MODEL
+        value: google/gemini-2.5-flash
+      - key: OPENROUTER_API_KEY
+        sync: false
+    disk:
+      name: traektoria-data
+      mountPath: /data
+      sizeGB: 1

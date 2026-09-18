@@ -25,6 +25,7 @@ import {
 } from '@core/profile/questionnaire';
 
 import { saveStepAction } from '../_actions/questionnaire';
+import { useStepNav } from './step-nav';
 import type { SaveStepResult } from '@/server/questionnaire-service';
 
 const INPUT_STYLE: React.CSSProperties = {
@@ -67,19 +68,54 @@ export function QuestionnaireStep({
    * навигация по шагам сначала сохраняет ответы.
    */
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
   const goAfterSave = useRef<string | null>(null);
-  const lastRevision = useRef<number | null>(null);
+  const handled = useRef<SaveStepResult | null>(null);
 
   useEffect(() => {
-    if (!state?.ok) return;
-    if (lastRevision.current === state.draftRevision) return;
-    lastRevision.current = state.draftRevision;
+    if (!state || handled.current === state) return;
+    handled.current = state;
 
     const target = goAfterSave.current;
     goAfterSave.current = null;
-    // При ошибках в полях остаёмся на шаге: пусть пользователь их увидит.
+
+    // Конфликт ревизий: остаёмся на шаге и показываем, что разошлось.
+    if (!state.ok) return;
+    // При ошибках в полях тоже остаёмся: пусть пользователь их увидит.
     if (target && state.errors.length === 0) router.push(target);
   }, [state, router]);
+
+  /**
+   * Верхние вкладки шагов стоят в шапке, вне этой формы. Они не уводят сами,
+   * а просят форму сохранить и уйти — иначе переход по вкладке терял бы
+   * набранное на текущем шаге.
+   */
+  const nav = useStepNav();
+
+  /**
+   * Единственный способ уйти со шага: запомнить цель и отправить форму.
+   *
+   * Кнопки раньше полагались на то, что их `onClick` успеет положить цель до
+   * отправки формы. На практике переход не срабатывал — сохранение проходило,
+   * а страница оставалась на месте. Верхние вкладки работали, потому что явно
+   * вызывали `requestSubmit`. Теперь этим путём идут и кнопки: один механизм,
+   * одно поведение.
+   */
+  const saveAndGo = (href: string | null) => {
+    if (pending) return;
+    goAfterSave.current = href;
+    formRef.current?.requestSubmit();
+  };
+
+  useEffect(() => {
+    if (!nav) return;
+    nav.register(saveAndGo);
+    return () => nav.register(null);
+  });
+
+  useEffect(() => {
+    nav?.setPending(pending);
+  }, [nav, pending]);
 
   const fields = visibleFields(step, values);
   const errors = state?.ok ? state.errors : [];
@@ -91,7 +127,7 @@ export function QuestionnaireStep({
   const revision = state?.ok ? state.draftRevision : draftRevision;
 
   return (
-    <form action={formAction} className="stack-tight">
+    <form ref={formRef} action={formAction} className="stack-tight">
       <input type="hidden" name="stepId" value={step.id} />
       <input type="hidden" name="expectedDraftRevision" value={revision} />
 
@@ -127,8 +163,9 @@ export function QuestionnaireStep({
             type="submit"
             className="btn btn--secondary"
             disabled={pending}
-            onClick={() => {
-              goAfterSave.current = prevHref;
+            onClick={(e) => {
+              e.preventDefault();
+              saveAndGo(prevHref);
             }}
           >
             Назад
@@ -138,8 +175,9 @@ export function QuestionnaireStep({
           type="submit"
           className="btn"
           disabled={pending}
-          onClick={() => {
-            goAfterSave.current = nextHref ?? '/profile/edit?step=review';
+          onClick={(e) => {
+            e.preventDefault();
+            saveAndGo(nextHref ?? '/profile/edit?step=review');
           }}
         >
           {pending

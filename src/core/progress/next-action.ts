@@ -329,6 +329,11 @@ function compareCandidates(today: PlainDate) {
     if (a.flags.overdue !== b.flags.overdue) return a.flags.overdue ? -1 : 1;
     if (a.flags.startsLate !== b.flags.startsLate) return a.flags.startsLate ? -1 : 1;
 
+    // Просроченное и опаздывающее важнее всего, но среди остального вперёд
+    // идёт то, что действительно отбирает. Некритическое действие — аттестат,
+    // который получат все, — ближайшим шагом быть не должно.
+    if (a.task.critical !== b.task.critical) return a.task.critical ? -1 : 1;
+
     const as = a.flags.slackDays ?? Number.MAX_SAFE_INTEGER;
     const bs = b.flags.slackDays ?? Number.MAX_SAFE_INTEGER;
     if (as !== bs) return as - bs;

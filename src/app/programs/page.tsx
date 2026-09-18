@@ -32,9 +32,9 @@ export default async function ProgramsPage() {
   const groups = [
     {
       key: 'recommended',
-      title: 'Подходят вам по известным условиям',
+      title: 'Начните с этих программ',
       items: recommendation.recommended,
-      note: 'Проходят по условиям и попадают в выбранные вами направления и страны.',
+      note: 'Совпадают с вашими интересами и странами, доступны по известным условиям. Проверьте требования, которые ещё предстоит выполнить.',
     },
     {
       key: 'alternatives',
@@ -61,15 +61,17 @@ export default async function ProgramsPage() {
   return (
     <div className="stack">
       <header className="page-heading">
-        <div><p className="card__eyebrow">Найдите своё направление</p><h1>Программы для вашего будущего</h1>
+        <div><p className="card__eyebrow">Шаг 2 · Подбор и сравнение</p><h1>Какие программы вам подходят</h1>
         <p className="lede">
-          Рассмотрено вариантов: {recommendation.consideredPathCount}. Посмотрите, какие условия уже выполнены, что нужно уточнить и подходит ли бюджет.
+          Откройте интересный вариант, проверьте условия и бюджет. Если трудно выбрать — сравните две программы.
         </p>
         </div>
         <Link className="btn" href="/compare">
           Сравнить программы <Icon name="arrow" size={16} />
         </Link>
       </header>
+
+      <div className="selection-guide"><Icon name="programs" size={21} /><p><strong>Как выбрать:</strong> причины подбора → сравнение вариантов → программа, к которой строить план.</p><span>Рассмотрено: {recommendation.consideredPathCount}</span></div>
 
       {recommendation.shortfallReason ? (
         <Notice tone="warn" title="Подходящих программ меньше трёх">
@@ -137,7 +139,7 @@ function ProgramCard({
   const counts = assessment.counts;
 
   return (
-    <article className="card program-card stack-tight">
+    <article className="card program-card stack-tight" data-bucket={assessment.bucket}>
       <div className="program-card__university"><span className="program-card__monogram">{goal.university.shortName}</span><div><p className="card__eyebrow">{goal.university.shortName} · {goal.university.city}</p><p className="small muted">{goal.intake.label} · {goal.path.label}</p></div></div>
       <h3>
         <Link href={`/programs/${goal.path.id}`}>{goal.program.title}</Link>
@@ -160,11 +162,11 @@ function ProgramCard({
 
       {/* UX-03: причины выбора и текущие пробелы — на карточке, без перехода в чат. */}
       {assessment.reasons.length > 0 ? (
-        <ul className="stack-tight small">
+        <div className="program-card__reasons"><p className="card__eyebrow">Почему этот вариант здесь</p><ul className="stack-tight small">
           {assessment.reasons.slice(0, 3).map((r, i) => (
             <li key={i}>{r}</li>
           ))}
-        </ul>
+        </ul></div>
       ) : null}
 
       {assessment.exclusionReason ? (
@@ -174,9 +176,9 @@ function ProgramCard({
       ) : null}
 
       <p className="task__meta">
-        <span>Условий выполнено: {counts.MET}</span>
-        <span>пробелов: {counts.NOT_MET}</span>
-        <span>неизвестно: {counts.UNKNOWN}</span>
+        <span>Уже выполнено: {counts.MET}</span>
+        <span>Нужно выполнить: {counts.NOT_MET}</span>
+        <span>Нужно уточнить: {counts.UNKNOWN}</span>
         {counts.CONFLICT > 0 ? <span>конфликтов: {counts.CONFLICT}</span> : null}
       </p>
       <Link className="program-card__link" href={`/programs/${goal.path.id}`}>Подробнее о программе <Icon name="arrow" size={17} /></Link>

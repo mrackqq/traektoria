@@ -17,6 +17,14 @@ export interface ProfileFieldChange {
   readonly label: string;
   readonly before: string;
   readonly after: string;
+  /**
+   * Поле заполнено впервые: прежнего ответа не было вовсе.
+   *
+   * Для такого поля «было → стало» показывать нельзя: «не заполнено → 2027»
+   * читается как ошибка в текущем профиле, хотя пользователь просто ответил
+   * на вопрос первый раз.
+   */
+  readonly firstTime: boolean;
 }
 
 export interface RecalcSummary {
@@ -46,17 +54,74 @@ export interface RecalcSummary {
   readonly notes: readonly string[];
 }
 
+/**
+ * Строка, которой прежний формат обозначал отсутствие ответа.
+ *
+ * `describeAnswer` даёт её только для `unanswered`: «не знаю» и «не применимо»
+ * — это ответы со своими текстами, и первым заполнением они не считаются.
+ */
+const NOT_FILLED = 'не заполнено';
+
+/** Запись изменения из сводки, сохранённой до появления `firstTime`. */
+export type LegacyProfileFieldChange = Omit<ProfileFieldChange, 'firstTime'> & {
+  readonly firstTime?: boolean;
+};
+
+/** Сводка, прочитанная с диска: про `firstTime` она могла не знать. */
+export type LegacyRecalcSummary = Omit<RecalcSummary, 'changes'> & {
+  readonly changes?: readonly LegacyProfileFieldChange[];
+};
+
+/**
+ * Досчитать `firstTime` для сводки, записанной прежней версией.
+ *
+ * Сохранённые сводки не переписываются и не пересчитываются: новой ревизии
+ * профиля ради миграции не появляется, ответы и прогресс не трогаются.
+ * Признак восстанавливается по тому, что в старой записи уже было, — по
+ * тексту прежнего ответа. Единственный случай, когда его не было вовсе, —
+ * `'не заполнено'`; всё остальное, включая «не знаю» и «не применимо»,
+ * было ответом, и его замена показывается как правка.
+ *
+ * Уже проставленный `firstTime` сохраняется как есть, поэтому повторный
+ * вызов ничего не меняет.
+ */
+export function normalizeRecalcSummary(
+  summary: LegacyRecalcSummary | null | undefined,
+): RecalcSummary | null {
+  if (!summary) return null;
+
+  // Данные читаются с диска: список изменений мог не дойти вовсе.
+  const changes = Array.isArray(summary.changes) ? summary.changes : [];
+
+  return {
+    ...summary,
+    changes: changes.map((change) => ({
+      ...change,
+      firstTime:
+        typeof change.firstTime === 'boolean' ? change.firstTime : change.before === NOT_FILLED,
+    })),
+  };
+}
+
 export function diffAnswers(
   before: DraftValues,
   after: DraftValues,
   fieldIds: readonly string[],
 ): ProfileFieldChange[] {
-  return fieldIds.map((fieldId) => ({
-    fieldId,
-    label: fieldLabel(fieldId),
-    before: describeAnswer(fieldId, before[fieldId]),
-    after: describeAnswer(fieldId, after[fieldId]),
-  }));
+  return fieldIds.map((fieldId) => {
+    const previous = before[fieldId];
+    // Именно состояние ответа, а не его текст: «не знаю» и «не применимо» —
+    // это ответы, и их изменение показывается как обычное «было → стало».
+    const firstTime = previous === undefined || previous.state === 'unanswered';
+
+    return {
+      fieldId,
+      label: fieldLabel(fieldId),
+      before: describeAnswer(fieldId, previous),
+      after: describeAnswer(fieldId, after[fieldId]),
+      firstTime,
+    };
+  });
 }
 
 function goalTitle(session: SessionSnapshot): string | null {

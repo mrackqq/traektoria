@@ -33,11 +33,11 @@ export function CommitDraft({
 
   return (
     <section className="card stack-tight" aria-labelledby="commit">
-      <p className="card__eyebrow">Применение</p>
-      <h2 id="commit">Записать ответы в профиль</h2>
+      <p className="card__eyebrow">Готовы посмотреть результат?</p>
+      <h2 id="commit">Сохраните ответы и обновите подбор</h2>
       <p>
-        Текущая ревизия профиля — {profileRevision}. Применение создаст следующую;
-        прежняя останется в истории, и расчёт на ней можно повторить.
+        Примените анкету — мы учтём новые ответы в рекомендациях и плане.
+        До этого ваши изменения остаются в черновике.
       </p>
 
       <form action={formAction} className="stack-tight">
@@ -53,7 +53,7 @@ export function CommitDraft({
             formAction={discardAction}
             disabled={pending || discarding}
           >
-            Отбросить черновик
+            Отменить изменения
           </button>
         </div>
 
@@ -73,7 +73,7 @@ export function CommitDraft({
                   </span>
                   Применено
                 </span>{' '}
-                {state.message}
+                Ответы сохранены. Посмотрите, что подходит вам и с чего начать.
               </p>
 
               {/* Одно заметное действие, остальные шаги — обычными ссылками. */}

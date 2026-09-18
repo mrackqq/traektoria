@@ -31,6 +31,8 @@
  * потому, что есть схема. Здесь их и нет — это витрина для проверки ядра.
  */
 
+import { CALENDAR_REFERENCE_YEAR, ENT_BLOCKS, admissionCalendar, programGroup } from './kz-rules';
+import { subjectRu } from '../i18n/labels';
 import { fromMajor } from '../kernel/money';
 import type { Deadline, PlainDate } from '../kernel/time';
 import type {
@@ -103,18 +105,26 @@ const ADMISSION_PAGES = {
   sdu: 'https://sdu.edu.kz/admission/',
   satbayev: 'https://satbayev.university/ru/admission',
   iitu: 'https://iitu.edu.kz/ru/abiturientu/',
-  tum: 'https://www.tum.de/en/studies/application',
-  metu: 'https://www.metu.edu.tr/prospective-students',
 } as const satisfies Record<string, string>;
 
+/** Политика приёма NU: первоисточник условий, а не пересказ на странице. */
+const NU_POLICY_URL =
+  'https://nu.edu.kz/wp-content/uploads/2026/04/admission-policy-and-procedures-to-the-nazarbayev-university-foundation-year-program-and-undergraduate-program-of-nu-1.pdf';
+
 const SOURCE_SPECS: readonly SourceSpec[] = [
-  { id: 'src-nu-req', title: 'Условия приёма: Nazarbayev University', publisher: 'Nazarbayev University', url: ADMISSION_PAGES['nu'], dataKind: 'mandatory_requirement', verifiedDaysAgo: 2,
-    excerpt: 'Минимальный общий балл IELTS 6.5, ни один компонент не ниже 6.0.' },
-  { id: 'src-nu-dl', title: 'Сроки приёма: Nazarbayev University', publisher: 'Nazarbayev University', url: ADMISSION_PAGES['nu'], dataKind: 'deadline', verifiedDaysAgo: 1 },
-  { id: 'src-nu-cost', title: 'Стоимость обучения: Nazarbayev University', publisher: 'Nazarbayev University', url: ADMISSION_PAGES['nu'], dataKind: 'cost', verifiedDaysAgo: 17 },
+  { id: 'src-kz-rules', title: 'Сроки приёмной кампании и конкурса грантов', publisher: 'Национальный центр тестирования', url: 'https://testcenter.kz/?page_id=15638&lang=ru', dataKind: 'deadline', verifiedDaysAgo: 0,
+    excerpt: 'Заявление на конкурс грантов подаётся 13–20 июля, итоги — начало августа, приём документов в вуз — до 25 августа.' },
+
+  { id: 'src-nu-req', title: 'Политика приёма NUFYP и бакалавриата, приказ № 38-н/қ от 11.03.2026', publisher: 'Nazarbayev University', url: NU_POLICY_URL, dataKind: 'mandatory_requirement', verifiedDaysAgo: 0,
+    excerpt: 'Приложение 1: IELTS не ниже 6.0 (writing 6.0), NUET — минимум 120 при 50 по каждому предмету, SAT 1240, ACT 26.' },
+  { id: 'src-nu-dl', title: 'Сроки приёма: Nazarbayev University', publisher: 'Nazarbayev University', url: ADMISSION_PAGES['nu'], dataKind: 'deadline', verifiedDaysAgo: 0,
+    excerpt: 'Сертификаты действительны, если не истекают к 1 августа соответствующего учебного года.' },
+  { id: 'src-nu-cost', title: 'Стоимость обучения и финансовая поддержка', publisher: 'Nazarbayev University', url: 'https://nu.edu.kz/admissions/fees-and-funding/', dataKind: 'cost', verifiedDaysAgo: 0,
+    excerpt: 'Foundation Year — 12 000 USD в год, бакалавриат — 15 000 USD в год.' },
 
   { id: 'src-kbtu-req', title: 'Условия приёма: КБТУ', publisher: 'Казахстанско-Британский технический университет', url: ADMISSION_PAGES['kbtu'], dataKind: 'mandatory_requirement', verifiedDaysAgo: 3 },
   { id: 'src-kbtu-dl', title: 'Сроки приёма: КБТУ', publisher: 'Казахстанско-Британский технический университет', url: ADMISSION_PAGES['kbtu'], dataKind: 'deadline', verifiedDaysAgo: 1 },
+  { id: 'src-kbtu-alt', title: 'Порог на платное отделение: сторонний агрегатор', publisher: 'Сторонний агрегатор (не вуз)', url: ADMISSION_PAGES['kbtu'], dataKind: 'mandatory_requirement', verifiedDaysAgo: 1 },
   { id: 'src-kbtu-cost', title: 'Стоимость обучения: КБТУ', publisher: 'Казахстанско-Британский технический университет', url: ADMISSION_PAGES['kbtu'], dataKind: 'cost', verifiedDaysAgo: 8 },
 
   { id: 'src-aitu-req', title: 'Условия приёма: Astana IT University', publisher: 'Astana IT University', url: ADMISSION_PAGES['aitu'], dataKind: 'mandatory_requirement', verifiedDaysAgo: 2 },
@@ -135,15 +145,8 @@ const SOURCE_SPECS: readonly SourceSpec[] = [
   { id: 'src-iitu-dl', title: 'Сроки приёма: МУИТ', publisher: 'Международный университет информационных технологий', url: ADMISSION_PAGES['iitu'], dataKind: 'deadline', verifiedDaysAgo: 2 },
   { id: 'src-iitu-cost', title: 'Стоимость обучения: МУИТ', publisher: 'Международный университет информационных технологий', url: ADMISSION_PAGES['iitu'], dataKind: 'cost', verifiedDaysAgo: 10 },
 
-  { id: 'src-tum-req', title: 'Условия международного приёма: TUM', publisher: 'Technical University of Munich', url: ADMISSION_PAGES['tum'], dataKind: 'mandatory_requirement', verifiedDaysAgo: 2 },
   // DATA-04: источники расходятся по этому сроку — см. SEED_CONFLICTS.
-  { id: 'src-tum-dl-a', title: 'Сроки подачи TUM: страница приёма', publisher: 'Technical University of Munich', url: ADMISSION_PAGES['tum'], dataKind: 'deadline', verifiedDaysAgo: 1 },
-  { id: 'src-tum-dl-b', title: 'Сроки подачи TUM: сторонний агрегатор', publisher: 'Сторонний агрегатор (не вуз)', url: ADMISSION_PAGES['tum'], dataKind: 'deadline', verifiedDaysAgo: 1 },
-  { id: 'src-tum-cost', title: 'Семестровый взнос и расходы: TUM', publisher: 'Technical University of Munich', url: ADMISSION_PAGES['tum'], dataKind: 'cost', verifiedDaysAgo: 6 },
 
-  { id: 'src-metu-req', title: 'Условия приёма: METU', publisher: 'Middle East Technical University', url: ADMISSION_PAGES['metu'], dataKind: 'mandatory_requirement', verifiedDaysAgo: 3 },
-  { id: 'src-metu-dl', title: 'Сроки приёма: METU', publisher: 'Middle East Technical University', url: ADMISSION_PAGES['metu'], dataKind: 'deadline', verifiedDaysAgo: 2 },
-  { id: 'src-metu-cost', title: 'Стоимость обучения: METU', publisher: 'Middle East Technical University', url: ADMISSION_PAGES['metu'], dataKind: 'cost', verifiedDaysAgo: 12 },
 ];
 
 function buildSources(epochMs: number): Source[] {
@@ -168,18 +171,24 @@ function buildSources(epochMs: number): Source[] {
   });
 }
 
-/** DATA-04 / AC-09: конфликт применимых источников по сроку подачи перевода. */
+/**
+ * DATA-04 / AC-09: два источника расходятся по одному и тому же числу.
+ *
+ * Это не выдуманная ситуация: страница вуза и агрегатор регулярно называют
+ * разные пороги на платное отделение. Пока расхождение не разрешено, вывод
+ * по условию не делается — вместо догадки показывается конфликт.
+ */
 function buildConflicts(baseYear: number, epochIso: string): SourceConflict[] {
   return [
     {
-      id: 'conflict-tum-deadline',
-      targetId: `tum-cs-${baseYear}-intl-leaf-deadline-doc`,
+      id: 'conflict-kbtu-threshold',
+      targetId: `kbtu-cs-${baseYear}-paid-ent-overall`,
       description:
-        'Срок предоставления заверенного перевода аттестата: версия A называет 15 января, ' +
-        'версия B — 1 февраля. Пока расхождение не разрешено, вывод по условию не делается.',
+        'Порог ЕНТ на платное отделение: страница приёмной комиссии называет 95 баллов, ' +
+        'сторонний агрегатор — 85. Пока расхождение не разрешено, вывод по условию не делается.',
       versions: [
-        { sourceId: 'src-tum-dl-a', claim: `15 января ${baseYear}` },
-        { sourceId: 'src-tum-dl-b', claim: `1 февраля ${baseYear}` },
+        { sourceId: 'src-kbtu-req', claim: 'ЕНТ от 95 баллов' },
+        { sourceId: 'src-kbtu-alt', claim: 'ЕНТ от 85 баллов' },
       ],
       openedAt: epochIso,
     },
@@ -210,8 +219,6 @@ export const SEED_UNIVERSITIES: readonly University[] = [
   uni('sdu', 'SDU University (Университет имени Сулеймана Демиреля)', 'SDU', 'KZ', 'Каскелен', 'https://sdu.edu.kz'),
   uni('satbayev', 'Satbayev University (КазНИТУ имени К. И. Сатпаева)', 'Satbayev', 'KZ', 'Алматы', 'https://satbayev.university'),
   uni('iitu', 'Международный университет информационных технологий', 'МУИТ', 'KZ', 'Алматы', 'https://iitu.edu.kz'),
-  uni('tum', 'Technical University of Munich', 'TUM', 'DE', 'Мюнхен', 'https://www.tum.de'),
-  uni('metu', 'Middle East Technical University', 'METU', 'TR', 'Анкара', 'https://www.metu.edu.tr'),
 ];
 
 /* ------------------------------------------------------------------ */
@@ -264,12 +271,6 @@ export const SEED_PROGRAMS: readonly Program[] = [
     'Классическая инженерная школа Казахстана, производственная практика.'),
   prog('iitu-cs', 'iitu', 'Вычислительная техника и программное обеспечение', 'computer_science', ['ru', 'en'], 'Алматы',
     'ИТ-направление, городской кампус в Алматы.'),
-  prog('tum-cs', 'tum', 'Informatik (B.Sc.)', 'computer_science', ['de', 'en'], 'Мюнхен',
-    'Платы за обучение нет, есть семестровый взнос; высокие требования к документам и языку.'),
-  prog('metu-cs', 'metu', 'Computer Engineering', 'computer_science', ['en'], 'Анкара',
-    'Англоязычная инженерная программа, умеренная стоимость для иностранцев.'),
-  prog('metu-ba', 'metu', 'Business Administration', 'business', ['en'], 'Анкара',
-    'Англоязычная программа по управлению, международная среда.'),
 ];
 
 /* ------------------------------------------------------------------ */
@@ -355,19 +356,72 @@ const leafLevel = (id: string, title: string, allowed: string[], sourceIds: stri
   predicate: { type: 'education_level' as const, allowed },
 });
 
-function ntAll(prefix: string, sourceIds: string[], min: number): RequirementGroup {
+/**
+ * ЕНТ по государственным правилам, а не одним числом.
+ *
+ * Сумма — только часть требования. Отдельно стоят пороги по блокам: ниже них
+ * не допускают независимо от суммы. И главное — профильная пара: с чужой парой
+ * подать на специальность нельзя вообще.
+ *
+ * Пороги блоков и пара берутся из `kz-rules`, то есть из перечня Нацтестцентра
+ * и приказа о пороговых баллах, а не подставляются в каждом вузе заново.
+ */
+function entAll(
+  prefix: string,
+  sourceIds: string[],
+  min: number,
+  groupCode: string,
+): RequirementGroup {
+  const group = programGroup(groupCode);
+  if (!group) throw new Error(`Неизвестная группа образовательных программ: ${groupCode}`);
+
+  const blocks = ENT_BLOCKS.map((block) =>
+    leafComponent(
+      `${prefix}-ent-${block.id}`,
+      `${block.title}: не ниже ${block.minScore} из ${block.maxScore}`,
+      'ЕНТ', 'ent_0_140', block.id, block.minScore, sourceIds, `exam:ent:${block.id}`,
+    ),
+  );
+
   return {
-    nodeType: 'GROUP', groupType: 'ALL', id: `${prefix}-nt`, title: 'Единое национальное тестирование',
-    children: [leafExam(`${prefix}-nt-overall`, `ЕНТ от ${min} баллов`, 'ЕНТ', 'ent_0_140', min, sourceIds, 'exam:ent:overall')],
+    nodeType: 'GROUP', groupType: 'ALL', id: `${prefix}-ent`,
+    title: 'Единое национальное тестирование',
+    explain:
+      `Группа образовательных программ ${group.code} — «${group.title}». ` +
+      'Порог по каждому блоку проверяется отдельно от суммы.',
+    children: [
+      {
+        nodeType: 'LEAF', id: `${prefix}-ent-pair`,
+        title: `Профильные предметы: ${subjectRu(group.profileSubjects[0])} и ${subjectRu(group.profileSubjects[1])}`,
+        countingKey: 'exam:ent:pair', critical: true, sourceRefs: sourceIds,
+        predicate: {
+          type: 'ent_profile_pair' as const,
+          subjects: group.profileSubjects,
+          groupCode: group.code,
+        },
+      },
+      leafExam(`${prefix}-ent-overall`, `ЕНТ от ${min} баллов`, 'ЕНТ', 'ent_0_140', min, sourceIds, 'exam:ent:overall'),
+      ...blocks,
+    ],
   };
 }
 
+/**
+ * Документы к зачислению — отдельно от условий конкурса.
+ *
+ * Аттестат получают все, кто доучился до конца 11 класса, поэтому он никого
+ * не отбирает: в конкурсе решают баллы ЕНТ. Раньше он стоял первой строкой
+ * среди условий и первым действием в маршруте — и выглядел как главное
+ * требование поступления, чем никогда не был.
+ */
 function docsAll(prefix: string, sourceIds: string[]): RequirementGroup {
   return {
-    nodeType: 'GROUP', groupType: 'ALL', id: `${prefix}-docs`, title: 'Документы',
+    nodeType: 'GROUP', groupType: 'ALL', id: `${prefix}-docs`,
+    title: 'Документы к зачислению',
+    explain: 'Проверяется при зачислении. В конкурсе на грант эти пункты не участвуют.',
     children: [
-      leafDoc(`${prefix}-docs-diploma`, 'Аттестат о среднем образовании', 'school_certificate', sourceIds, 'doc:school_certificate'),
       leafLevel(`${prefix}-level`, 'Выпускник школы или 11 класс', ['grade_11', 'school_graduate'], sourceIds, 'level:secondary'),
+      { ...leafDoc(`${prefix}-docs-diploma`, 'Аттестат о среднем образовании', 'school_certificate', sourceIds, 'doc:school_certificate'), critical: false },
     ],
   };
 }
@@ -406,6 +460,292 @@ function econAtLeast(prefix: string, sourceIds: string[], k: number): Requiremen
       leafSubject(`${prefix}-stem-history`, 'История Казахстана', 'history', sourceIds, 'subject:history'),
     ],
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* Nazarbayev University                                               */
+/* ------------------------------------------------------------------ */
+
+const COMPONENT_TITLE: Readonly<Record<string, string>> = {
+  writing: 'Writing', reading: 'Reading', listening: 'Listening', speaking: 'Speaking',
+};
+
+/**
+ * Английский по правилам NU: пороги стоят и на общий балл, и на каждый навык.
+ *
+ * TOEFL в политике приёма задан не числом, а ссылкой на таблицу соответствия
+ * ETS. Подставить сюда «80» значило бы выдумать порог, поэтому TOEFL остаётся
+ * оговоркой в пояснении, а не листом с числом.
+ */
+function nuEnglish(
+  prefix: string,
+  overall: number,
+  sections: Readonly<Record<string, number>>,
+): RequirementGroup {
+  return {
+    nodeType: 'GROUP', groupType: 'ALL', id: `${prefix}-lang`,
+    title: `IELTS Academic от ${overall.toFixed(1)}`,
+    explain:
+      'Сертификат засчитывается только при очной сдаче в центре тестирования: ' +
+      'IELTS Online, IELTS Indicator и TOEFL iBT Home Edition не принимаются. ' +
+      'TOEFL iBT принимается по таблице соответствия ETS — конкретный порог ' +
+      'в политике приёма не указан, поэтому мы его не подставляем.',
+    children: [
+      leafExam(`${prefix}-lang-overall`, `IELTS общий балл от ${overall.toFixed(1)}`, 'IELTS', 'ielts_0_9', overall, ['src-nu-req'], 'lang:ielts:overall'),
+      ...Object.entries(sections).map(([component, min]) =>
+        leafComponent(
+          `${prefix}-lang-${component}`,
+          `IELTS ${COMPONENT_TITLE[component] ?? component} от ${min.toFixed(1)}`,
+          'IELTS', 'ielts_0_9', component, min, ['src-nu-req'], `lang:ielts:${component}`,
+        ),
+      ),
+    ],
+  };
+}
+
+/** NUET: общий балл и обязательный минимум по каждому из двух предметов. */
+function nuetAll(prefix: string, overall: number, perSubject: number): RequirementGroup {
+  return {
+    nodeType: 'GROUP', groupType: 'ALL', id: `${prefix}-nuet`,
+    title: `NUET от ${overall} баллов`,
+    explain: `Отдельно проверяется каждый предмет: не ниже ${perSubject} по математике и по critical thinking.`,
+    children: [
+      leafExam(`${prefix}-nuet-overall`, `NUET общий балл от ${overall}`, 'NUET', 'nuet_0_240', overall, ['src-nu-req'], 'exam:nuet:overall'),
+      leafComponent(`${prefix}-nuet-math`, `NUET Mathematics от ${perSubject}`, 'NUET', 'nuet_0_240', 'math', perSubject, ['src-nu-req'], 'exam:nuet:math'),
+      leafComponent(`${prefix}-nuet-ctps`, `NUET Critical Thinking от ${perSubject}`, 'NUET', 'nuet_0_240', 'critical_thinking', perSubject, ['src-nu-req'], 'exam:nuet:ctps'),
+    ],
+  };
+}
+
+/** Вступительный экзамен для конкурса на грант: NUET, SAT или ACT. */
+function nuEntrance(prefix: string, nuetOverall: number, nuetPerSubject: number): RequirementGroup {
+  return {
+    nodeType: 'GROUP', groupType: 'ANY', id: `${prefix}-entrance`,
+    title: 'Вступительный экзамен',
+    explain:
+      'Достаточно одного из трёх. Политика приёма допускает ещё вход по диплому IB, ' +
+      'A-level, аттестату NIS 12 класса и по медалям республиканских и международных ' +
+      'олимпиад — эти пути мы пока не проверяем.',
+    children: [
+      nuetAll(prefix, nuetOverall, nuetPerSubject),
+      leafExam(`${prefix}-sat`, 'SAT от 1240', 'SAT', 'sat_400_1600', 1240, ['src-nu-req'], 'exam:sat:overall'),
+      leafExam(`${prefix}-act`, 'ACT composite от 26', 'ACT', 'act_1_36', 26, ['src-nu-req'], 'exam:act:overall'),
+    ],
+  };
+}
+
+/**
+ * Академический порог платного приёма: аттестат ИЛИ ЕНТ.
+ *
+ * Это именно порог допуска. Ранжируют поступающих по вступительным экзаменам
+ * и английскому — средний балл аттестата места в конкурсе не определяет.
+ */
+function nuAcademic(
+  prefix: string,
+  gpaMin: number,
+  entOverall: number,
+  literacyMin: number,
+): RequirementGroup {
+  return {
+    nodeType: 'GROUP', groupType: 'ANY', id: `${prefix}-academic`,
+    title: 'Академический порог: аттестат или ЕНТ',
+    explain:
+      'Достаточно одного из двух. ЕНТ засчитывается только сданный на английском языке. ' +
+      'Это порог допуска к конкурсу, а не место в нём.',
+    children: [
+      leafGpa(`${prefix}-academic-gpa`, `Средний балл аттестата от ${gpaMin}`, 'gpa_5', gpaMin, ['src-nu-req'], 'gpa:5'),
+      {
+        nodeType: 'GROUP', groupType: 'ALL', id: `${prefix}-academic-ent`, title: `ЕНТ от ${entOverall} баллов`,
+        children: [
+          leafExam(`${prefix}-academic-ent-overall`, `ЕНТ от ${entOverall} баллов`, 'ЕНТ', 'ent_0_140', entOverall, ['src-nu-req'], 'exam:ent:overall'),
+          leafComponent(`${prefix}-academic-ent-math`, `Математическая грамотность от ${literacyMin} из 10`, 'ЕНТ', 'ent_0_140', 'math_literacy', literacyMin, ['src-nu-req'], 'exam:ent:math_literacy'),
+          leafComponent(`${prefix}-academic-ent-reading`, `Грамотность чтения от ${literacyMin} из 10`, 'ЕНТ', 'ent_0_140', 'reading_literacy', literacyMin, ['src-nu-req'], 'exam:ent:reading_literacy'),
+        ],
+      },
+    ],
+  };
+}
+
+/**
+ * Документы к зачислению — отдельно от условий конкурса.
+ *
+ * Аттестат нужен, чтобы зачислиться, но он не отбирает: его получают все, кто
+ * доучился. Поэтому лист некритический и стоит в своей группе, а не первой
+ * строкой среди вступительных экзаменов.
+ */
+function nuDocs(prefix: string): RequirementGroup {
+  return {
+    nodeType: 'GROUP', groupType: 'ALL', id: `${prefix}-docs`,
+    title: 'Документы к зачислению',
+    explain: 'Проверяется при зачислении. В конкурсе эти пункты не участвуют.',
+    children: [
+      leafLevel(`${prefix}-level`, 'Выпускник школы или 11 класс', ['grade_11', 'school_graduate'], ['src-nu-req'], 'level:secondary'),
+      { ...leafDoc(`${prefix}-docs-certificate`, 'Аттестат о среднем образовании', 'school_certificate', ['src-nu-req'], 'doc:school_certificate'), critical: false },
+    ],
+  };
+}
+
+/**
+ * Четыре разных входа в NU, а не «грант и платное».
+ *
+ * Различие принципиальное и для человека решающее: на грант нужен
+ * вступительный экзамен (NUET, SAT или ACT), а на платное — английский плюс
+ * аттестат или ЕНТ, и вступительный экзамен не нужен вовсе. Раньше каталог
+ * этого не показывал: у обоих путей стояли ЕНТ и «профильные предметы»,
+ * которых у NU нет.
+ */
+function nuPaths(iid: string, year: number): AdmissionPath[] {
+  const sourceIds = ['src-nu-req', 'src-nu-dl', 'src-nu-cost'];
+  const base = {
+    intakeId: iid,
+    applicantCategories: ['kz_citizen', 'foreign'],
+    requirementTreeVersion: 4,
+    isDemo: false,
+    sourceIds,
+    deadlines: [],
+  } as const;
+
+  const grantFunding = (id: string, tuitionUsd: number) => [{
+    id: `${id}-funding`,
+    label: 'Грант NU: полное покрытие обучения',
+    amount: fromMajor(tuitionUsd, 'USD'),
+    coverage: 'tuition_full' as const,
+    defaultState: 'expected' as const,
+    conditions:
+      'Присуждается по результатам вступительных экзаменов и английского. ' +
+      'Средний балл аттестата в конкурсе на грант не участвует. Проходной балл ' +
+      'определяется конкурсом и заранее неизвестен.',
+    sourceIds: ['src-nu-cost'],
+  }];
+
+  return [
+    {
+      ...base,
+      id: `${iid}-nufyp-grant`, label: 'Foundation Year (NUFYP), грант', kind: 'grant',
+      requirementTree: {
+        nodeType: 'GROUP', groupType: 'ALL', id: `${iid}-nufyp-grant-root`,
+        title: 'Конкурс на грант, подготовительный год',
+        children: [
+          nuEnglish(`${iid}-nufyp-grant`, 5.5, { writing: 5.5, reading: 5.5, listening: 5.0, speaking: 5.0 }),
+          // SAT и ACT на подготовительный год принимаются только от
+          // иностранных заявителей, поэтому здесь остаётся один NUET.
+          nuetAll(`${iid}-nufyp-grant`, 120, 50),
+          nuDocs(`${iid}-nufyp-grant`),
+        ],
+      },
+      costs: [],
+      funding: grantFunding(`${iid}-nufyp-grant`, 12_000),
+    },
+    {
+      ...base,
+      id: `${iid}-nufyp-paid`, label: 'Foundation Year (NUFYP), платное', kind: 'paid',
+      requirementTree: {
+        nodeType: 'GROUP', groupType: 'ALL', id: `${iid}-nufyp-paid-root`,
+        title: 'Условия платного приёма, подготовительный год',
+        children: [
+          nuEnglish(`${iid}-nufyp-paid`, 5.5, { writing: 5.5, reading: 5.5, listening: 5.0, speaking: 5.0 }),
+          nuAcademic(`${iid}-nufyp-paid`, 3.5, 75, 7),
+          nuDocs(`${iid}-nufyp-paid`),
+        ],
+      },
+      costs: [
+        cost(`${iid}-nufyp-paid-tuition`, 'Обучение, подготовительный год', 'tuition', 12_000, 12_000, 'USD', ['src-nu-cost'], 'tuition_only', 'academic_year'),
+      ],
+      funding: [],
+    },
+    {
+      ...base,
+      id: `${iid}-ug-grant`, label: 'Бакалавриат напрямую, грант', kind: 'grant',
+      requirementTree: {
+        nodeType: 'GROUP', groupType: 'ALL', id: `${iid}-ug-grant-root`,
+        title: 'Конкурс на грант, бакалавриат',
+        children: [
+          nuEnglish(`${iid}-ug-grant`, 6.0, { writing: 6.0, reading: 5.5, listening: 5.5, speaking: 5.5 }),
+          nuEntrance(`${iid}-ug-grant`, 120, 50),
+          nuDocs(`${iid}-ug-grant`),
+        ],
+      },
+      costs: [],
+      funding: grantFunding(`${iid}-ug-grant`, 15_000),
+    },
+    {
+      ...base,
+      id: `${iid}-ug-paid`, label: 'Бакалавриат напрямую, платное', kind: 'paid',
+      requirementTree: {
+        nodeType: 'GROUP', groupType: 'ALL', id: `${iid}-ug-paid-root`,
+        title: 'Условия платного приёма, бакалавриат',
+        children: [
+          nuEnglish(`${iid}-ug-paid`, 6.0, { writing: 6.0, reading: 5.5, listening: 5.5, speaking: 5.5 }),
+          nuAcademic(`${iid}-ug-paid`, 4.0, 85, 8),
+          nuDocs(`${iid}-ug-paid`),
+        ],
+      },
+      costs: [
+        cost(`${iid}-ug-paid-tuition`, 'Обучение, бакалавриат', 'tuition', 15_000, 15_000, 'USD', ['src-nu-cost'], 'tuition_only', 'academic_year'),
+      ],
+      funding: [],
+    },
+  ];
+}
+
+/**
+ * Сроки кампании берутся из государственного календаря, а не выдумываются
+ * в карточке каждого вуза.
+ *
+ * Для абитуриента-казахстанца ключевые даты общие: результат ЕНТ должен быть
+ * к началу подачи, заявление на грант подаётся 13–20 июля, итоги конкурса —
+ * в начале августа, оригиналы — до 25 августа. Вуз добавляет сверху только
+ * свои сроки на платное.
+ *
+ * Время и часовой пояс не подставляются: приказ задаёт день, и планировщик
+ * обязан показать неопределённость вместо выдуманных 23:59.
+ */
+function kzNationalDeadlines(iid: string, year: number): Deadline[] {
+  const preliminary = year !== CALENDAR_REFERENCE_YEAR;
+  const mark = (text: string) =>
+    preliminary
+      ? `${text} Даты цикла ${CALENDAR_REFERENCE_YEAR} года: приказ на ${year} год может их сдвинуть.`
+      : text;
+
+  const byId = (id: string) => {
+    const found = admissionCalendar(year).find((d) => d.id === id);
+    if (!found) throw new Error(`Нет события календаря: ${id}`);
+    return found;
+  };
+
+  const application = byId('grant-application');
+  const results = byId('grant-results');
+  const enrollment = byId('enrollment');
+  const mainEnt = admissionCalendar(year).find((d) => d.id === 'ent-main-testing')!;
+
+  const dayOnly = (id: string, kind: Deadline['kind'], date: string, note: string): Deadline =>
+    dl(id, kind, date, {
+      precision: 'date_only',
+      localTime: undefined,
+      timezone: undefined,
+      inclusive: 'unknown',
+      sourceId: 'src-kz-rules',
+      note: mark(note),
+    });
+
+  return [
+    dayOnly(
+      `${iid}-ent-result`, 'result_submission', mainEnt.to,
+      'Основной этап ЕНТ закрывается: результат нужен к подаче заявления на грант.',
+    ),
+    dayOnly(
+      `${iid}-grant-apply`, 'application_submission', application.to,
+      `Заявление на конкурс грантов подаётся в окно ${application.from.slice(5)} — ${application.to.slice(5)}: до четырёх групп программ по приоритетам, все из одной профильной пары.`,
+    ),
+    dayOnly(
+      `${iid}-grant-results`, 'funding_competition', results.to,
+      'Итоги конкурса. Проходной балл появляется только здесь — заранее его не существует.',
+    ),
+    dayOnly(
+      `${iid}-enrollment`, 'document_receipt', enrollment.to,
+      'Последний день подачи документов в вуз: получившие грант несут оригиналы, платники подают напрямую.',
+    ),
+  ];
 }
 
 function cost(
@@ -451,90 +791,35 @@ function buildYear(year: number, programIds: readonly string[], preliminary: boo
     paths.push(...list);
   };
 
-  /* --- «Астана Рисёрч», Computer Science --- */
-  if (take('nu-cs')) {
-    const iid = `nu-cs-${year}`;
+  /* --- Nazarbayev University --- */
+  for (const programId of ['nu-cs', 'nu-ee'] as const) {
+    if (!take(programId)) continue;
+    const iid = `${programId}-${year}`;
     add(
       {
-        id: iid, programId: 'nu-cs', admissionYear: year, label,
-        resultValidityControlDate: `${year}-06-30`, isDemo: true,
+        id: iid, programId, admissionYear: year, label,
+        // Правило политики приёма: сертификаты не должны истекать к 1 августа
+        // соответствующего учебного года.
+        resultValidityControlDate: `${year}-08-01`, isDemo: false,
         deadlines: [
-          dl(`${iid}-apply`, 'application_submission', `${year}-01-20`, { sourceId: 'src-nu-dl', ...(note ? { note } : {}) }),
-          dl(`${iid}-result`, 'result_submission', `${year}-02-10`, { sourceId: 'src-nu-dl' }),
+          dl(`${iid}-apply`, 'application_submission', `${year}-08-17`, {
+            // Точные сроки следующего цикла NU публикует отдельно, поэтому
+            // время и часовой пояс не подставляем: планировщик обязан показать
+            // неопределённость, а не выдуманные 18:00.
+            precision: 'date_only',
+            localTime: undefined,
+            timezone: undefined,
+            inclusive: 'unknown',
+            sourceId: 'src-nu-dl',
+            note: note ?? 'Дата предыдущего цикла: точные сроки NU объявляет на своём сайте.',
+          }),
+          dl(`${iid}-certificates`, 'result_submission', `${year}-08-01`, {
+            sourceId: 'src-nu-dl',
+            note: 'Сертификаты IELTS, SAT и ACT не должны истекать к этой дате.',
+          }),
         ],
       },
-      [
-        {
-          id: `${iid}-grant`, intakeId: iid, label: 'Грант', kind: 'grant',
-          applicantCategories: ['kz_citizen'], requirementTreeVersion: 3, isDemo: true,
-          sourceIds: ['src-nu-req', 'src-nu-dl', 'src-nu-cost'], deadlines: [],
-          requirementTree: {
-            nodeType: 'GROUP', groupType: 'ALL', id: `${iid}-grant-root`, title: 'Условия гранта',
-            children: [
-              englishAny(`${iid}-grant`, ['src-nu-req'], 6.5, 90),
-              leafGpa(`${iid}-grant-gpa`, 'Средний балл аттестата от 4.5', 'gpa_5', 4.5, ['src-nu-req'], 'gpa:5'),
-              stemAtLeast(`${iid}-grant`, ['src-nu-req'], 2),
-              docsAll(`${iid}-grant`, ['src-nu-req']),
-            ],
-          },
-          costs: [
-            cost(`${iid}-grant-living`, 'Проживание и питание', 'living', 900_000, 1_400_000, 'KZT', ['src-nu-cost'], 'total', 'academic_year', true, true),
-            cost(`${iid}-grant-onetime`, 'Разовые расходы на поступление', 'one_time', 60_000, 120_000, 'KZT', ['src-nu-cost'], 'total', 'one_time'),
-          ],
-          funding: [{
-            id: `${iid}-grant-full`, label: 'Государственный образовательный грант (демо)',
-            amount: fromMajor(3_500_000, 'KZT'), coverage: 'tuition_full', defaultState: 'expected',
-            conditions: 'Конкурс по баллу ЕНТ и портфолио.', sourceIds: ['src-nu-cost'],
-          }],
-        },
-        {
-          id: `${iid}-paid`, intakeId: iid, label: 'Платное обучение', kind: 'paid',
-          applicantCategories: ['kz_citizen', 'foreign'], requirementTreeVersion: 3, isDemo: true,
-          sourceIds: ['src-nu-req', 'src-nu-dl', 'src-nu-cost'], deadlines: [],
-          requirementTree: {
-            nodeType: 'GROUP', groupType: 'ALL', id: `${iid}-paid-root`, title: 'Условия платного приёма',
-            children: [
-              englishAny(`${iid}-paid`, ['src-nu-req'], 6.5, 90),
-              leafGpa(`${iid}-paid-gpa`, 'Средний балл аттестата от 4.0', 'gpa_5', 4.0, ['src-nu-req'], 'gpa:5'),
-              docsAll(`${iid}-paid`, ['src-nu-req']),
-            ],
-          },
-          costs: [
-            cost(`${iid}-paid-tuition`, 'Обучение', 'tuition', 3_500_000, 3_500_000, 'KZT', ['src-nu-cost'], 'tuition_only', 'academic_year'),
-            cost(`${iid}-paid-living`, 'Проживание и питание', 'living', 900_000, 1_400_000, 'KZT', ['src-nu-cost'], 'total', 'academic_year', true, true),
-          ],
-          funding: [],
-        },
-      ],
-    );
-  }
-
-  /* --- «Астана Рисёрч», электроника --- */
-  if (take('nu-ee')) {
-    const iid = `nu-ee-${year}`;
-    add(
-      {
-        id: iid, programId: 'nu-ee', admissionYear: year, label,
-        resultValidityControlDate: `${year}-06-30`, isDemo: true,
-        deadlines: [dl(`${iid}-apply`, 'application_submission', `${year}-01-20`, { sourceId: 'src-nu-dl' })],
-      },
-      [{
-        id: `${iid}-paid`, intakeId: iid, label: 'Платное обучение', kind: 'paid',
-        applicantCategories: ['kz_citizen', 'foreign'], requirementTreeVersion: 2, isDemo: true,
-        sourceIds: ['src-nu-req', 'src-nu-dl', 'src-nu-cost'], deadlines: [],
-        requirementTree: {
-          nodeType: 'GROUP', groupType: 'ALL', id: `${iid}-paid-root`, title: 'Условия приёма',
-          children: [
-            englishAny(`${iid}-paid`, ['src-nu-req'], 6.0, 80),
-            stemAtLeast(`${iid}-paid`, ['src-nu-req'], 2),
-            docsAll(`${iid}-paid`, ['src-nu-req']),
-          ],
-        },
-        costs: [
-          cost(`${iid}-paid-tuition`, 'Обучение', 'tuition', 3_200_000, 3_200_000, 'KZT', ['src-nu-cost'], 'tuition_only', 'academic_year'),
-        ],
-        funding: [],
-      }],
+      nuPaths(iid, year),
     );
   }
 
@@ -545,19 +830,7 @@ function buildYear(year: number, programIds: readonly string[], preliminary: boo
       {
         id: iid, programId: 'kbtu-cs', admissionYear: year, label,
         resultValidityControlDate: `${year}-07-15`, isDemo: true,
-        deadlines: [
-          dl(`${iid}-apply`, 'application_submission', `${year}-06-25`, { sourceId: 'src-kbtu-dl', ...(note ? { note } : {}) }),
-          // Источник указал день, но не время и не зону: планировщик обязан
-          // показать неопределённость, а не подставить 23:59.
-          dl(`${iid}-docs`, 'document_receipt', `${year}-06-10`, {
-            precision: 'date_only',
-            localTime: undefined,
-            timezone: undefined,
-            inclusive: 'unknown',
-            sourceId: 'src-kbtu-dl',
-            note: 'Источник не указал время и часовой пояс.',
-          }),
-        ],
+        deadlines: kzNationalDeadlines(iid, year),
       },
       [{
         id: `${iid}-paid`, intakeId: iid, label: 'Платное обучение', kind: 'paid',
@@ -566,9 +839,8 @@ function buildYear(year: number, programIds: readonly string[], preliminary: boo
         requirementTree: {
           nodeType: 'GROUP', groupType: 'ALL', id: `${iid}-paid-root`, title: 'Условия приёма',
           children: [
-            ntAll(`${iid}-paid`, ['src-kbtu-req'], 95),
+            entAll(`${iid}-paid`, ['src-kbtu-req'], 95, 'В057'),
             englishAny(`${iid}-paid`, ['src-kbtu-req'], 5.5, 72),
-            stemAtLeast(`${iid}-paid`, ['src-kbtu-req'], 2),
             docsAll(`${iid}-paid`, ['src-kbtu-req']),
           ],
         },
@@ -588,7 +860,7 @@ function buildYear(year: number, programIds: readonly string[], preliminary: boo
       {
         id: iid, programId: 'kbtu-fin', admissionYear: year, label,
         resultValidityControlDate: `${year}-07-15`, isDemo: true,
-        deadlines: [dl(`${iid}-apply`, 'application_submission', `${year}-06-25`, { sourceId: 'src-kbtu-dl' })],
+        deadlines: kzNationalDeadlines(iid, year),
       },
       [{
         id: `${iid}-paid`, intakeId: iid, label: 'Платное обучение', kind: 'paid',
@@ -597,9 +869,8 @@ function buildYear(year: number, programIds: readonly string[], preliminary: boo
         requirementTree: {
           nodeType: 'GROUP', groupType: 'ALL', id: `${iid}-paid-root`, title: 'Условия приёма',
           children: [
-            ntAll(`${iid}-paid`, ['src-kbtu-req'], 90),
+            entAll(`${iid}-paid`, ['src-kbtu-req'], 90, 'В046'),
             englishAny(`${iid}-paid`, ['src-kbtu-req'], 5.5, 72),
-            econAtLeast(`${iid}-paid`, ['src-kbtu-req'], 2),
             docsAll(`${iid}-paid`, ['src-kbtu-req']),
           ],
         },
@@ -618,7 +889,7 @@ function buildYear(year: number, programIds: readonly string[], preliminary: boo
       {
         id: iid, programId: 'kbtu-pe', admissionYear: year, label,
         resultValidityControlDate: `${year}-07-15`, isDemo: true,
-        deadlines: [dl(`${iid}-apply`, 'application_submission', `${year}-06-25`, { sourceId: 'src-kbtu-dl' })],
+        deadlines: kzNationalDeadlines(iid, year),
       },
       [{
         id: `${iid}-paid`, intakeId: iid, label: 'Платное обучение', kind: 'paid',
@@ -627,8 +898,7 @@ function buildYear(year: number, programIds: readonly string[], preliminary: boo
         requirementTree: {
           nodeType: 'GROUP', groupType: 'ALL', id: `${iid}-paid-root`, title: 'Условия приёма',
           children: [
-            ntAll(`${iid}-paid`, ['src-kbtu-req'], 85),
-            stemAtLeast(`${iid}-paid`, ['src-kbtu-req'], 2),
+            entAll(`${iid}-paid`, ['src-kbtu-req'], 85, 'В071'),
             docsAll(`${iid}-paid`, ['src-kbtu-req']),
           ],
         },
@@ -647,7 +917,7 @@ function buildYear(year: number, programIds: readonly string[], preliminary: boo
       {
         id: iid, programId: 'aitu-se', admissionYear: year, label,
         resultValidityControlDate: `${year}-07-20`, isDemo: true,
-        deadlines: [dl(`${iid}-apply`, 'application_submission', `${year}-07-01`, { sourceId: 'src-aitu-dl', ...(note ? { note } : {}) })],
+        deadlines: kzNationalDeadlines(iid, year),
       },
       [{
         id: `${iid}-paid`, intakeId: iid, label: 'Платное обучение', kind: 'paid',
@@ -656,8 +926,7 @@ function buildYear(year: number, programIds: readonly string[], preliminary: boo
         requirementTree: {
           nodeType: 'GROUP', groupType: 'ALL', id: `${iid}-paid-root`, title: 'Условия приёма',
           children: [
-            ntAll(`${iid}-paid`, ['src-aitu-req'], 85),
-            stemAtLeast(`${iid}-paid`, ['src-aitu-req'], 2),
+            entAll(`${iid}-paid`, ['src-aitu-req'], 85, 'В057'),
             docsAll(`${iid}-paid`, ['src-aitu-req']),
           ],
         },
@@ -677,7 +946,7 @@ function buildYear(year: number, programIds: readonly string[], preliminary: boo
       {
         id: iid, programId: 'aitu-bit', admissionYear: year, label,
         resultValidityControlDate: `${year}-07-20`, isDemo: true,
-        deadlines: [dl(`${iid}-apply`, 'application_submission', `${year}-07-01`, { sourceId: 'src-aitu-dl' })],
+        deadlines: kzNationalDeadlines(iid, year),
       },
       [{
         id: `${iid}-paid`, intakeId: iid, label: 'Платное обучение', kind: 'paid',
@@ -686,8 +955,7 @@ function buildYear(year: number, programIds: readonly string[], preliminary: boo
         requirementTree: {
           nodeType: 'GROUP', groupType: 'ALL', id: `${iid}-paid-root`, title: 'Условия приёма',
           children: [
-            ntAll(`${iid}-paid`, ['src-aitu-req'], 80),
-            econAtLeast(`${iid}-paid`, ['src-aitu-req'], 2),
+            entAll(`${iid}-paid`, ['src-aitu-req'], 80, 'В057'),
             docsAll(`${iid}-paid`, ['src-aitu-req']),
           ],
         },
@@ -706,7 +974,7 @@ function buildYear(year: number, programIds: readonly string[], preliminary: boo
       {
         id: iid, programId: 'sdu-cs', admissionYear: year, label,
         resultValidityControlDate: `${year}-07-20`, isDemo: true,
-        deadlines: [dl(`${iid}-apply`, 'application_submission', `${year}-07-05`, { sourceId: 'src-sdu-dl', ...(note ? { note } : {}) })],
+        deadlines: kzNationalDeadlines(iid, year),
       },
       [{
         id: `${iid}-paid`, intakeId: iid, label: 'Платное обучение', kind: 'paid',
@@ -715,7 +983,7 @@ function buildYear(year: number, programIds: readonly string[], preliminary: boo
         requirementTree: {
           nodeType: 'GROUP', groupType: 'ALL', id: `${iid}-paid-root`, title: 'Условия приёма',
           children: [
-            ntAll(`${iid}-paid`, ['src-sdu-req'], 75),
+            entAll(`${iid}-paid`, ['src-sdu-req'], 75, 'В057'),
             docsAll(`${iid}-paid`, ['src-sdu-req']),
           ],
         },
@@ -739,7 +1007,7 @@ function buildYear(year: number, programIds: readonly string[], preliminary: boo
       {
         id: iid, programId: 'sdu-econ', admissionYear: year, label,
         resultValidityControlDate: `${year}-07-20`, isDemo: true,
-        deadlines: [dl(`${iid}-apply`, 'application_submission', `${year}-07-05`, { sourceId: 'src-sdu-dl' })],
+        deadlines: kzNationalDeadlines(iid, year),
       },
       [{
         id: `${iid}-paid`, intakeId: iid, label: 'Платное обучение', kind: 'paid',
@@ -748,8 +1016,7 @@ function buildYear(year: number, programIds: readonly string[], preliminary: boo
         requirementTree: {
           nodeType: 'GROUP', groupType: 'ALL', id: `${iid}-paid-root`, title: 'Условия приёма',
           children: [
-            ntAll(`${iid}-paid`, ['src-sdu-req'], 70),
-            econAtLeast(`${iid}-paid`, ['src-sdu-req'], 2),
+            entAll(`${iid}-paid`, ['src-sdu-req'], 70, 'В046'),
             docsAll(`${iid}-paid`, ['src-sdu-req']),
           ],
         },
@@ -768,7 +1035,7 @@ function buildYear(year: number, programIds: readonly string[], preliminary: boo
       {
         id: iid, programId: 'satbayev-eng', admissionYear: year, label,
         resultValidityControlDate: `${year}-07-20`, isDemo: true,
-        deadlines: [dl(`${iid}-apply`, 'application_submission', `${year}-07-10`, { sourceId: 'src-satbayev-dl' })],
+        deadlines: kzNationalDeadlines(iid, year),
       },
       [{
         id: `${iid}-paid`, intakeId: iid, label: 'Платное обучение', kind: 'paid',
@@ -777,8 +1044,7 @@ function buildYear(year: number, programIds: readonly string[], preliminary: boo
         requirementTree: {
           nodeType: 'GROUP', groupType: 'ALL', id: `${iid}-paid-root`, title: 'Условия приёма',
           children: [
-            ntAll(`${iid}-paid`, ['src-satbayev-req'], 70),
-            stemAtLeast(`${iid}-paid`, ['src-satbayev-req'], 2),
+            entAll(`${iid}-paid`, ['src-satbayev-req'], 70, 'В063'),
             docsAll(`${iid}-paid`, ['src-satbayev-req']),
           ],
         },
@@ -797,7 +1063,7 @@ function buildYear(year: number, programIds: readonly string[], preliminary: boo
       {
         id: iid, programId: 'iitu-cs', admissionYear: year, label,
         resultValidityControlDate: `${year}-07-20`, isDemo: true,
-        deadlines: [dl(`${iid}-apply`, 'application_submission', `${year}-07-05`, { sourceId: 'src-iitu-dl' })],
+        deadlines: kzNationalDeadlines(iid, year),
       },
       [{
         id: `${iid}-paid`, intakeId: iid, label: 'Платное обучение', kind: 'paid',
@@ -806,121 +1072,12 @@ function buildYear(year: number, programIds: readonly string[], preliminary: boo
         requirementTree: {
           nodeType: 'GROUP', groupType: 'ALL', id: `${iid}-paid-root`, title: 'Условия приёма',
           children: [
-            ntAll(`${iid}-paid`, ['src-iitu-req'], 80),
+            entAll(`${iid}-paid`, ['src-iitu-req'], 80, 'В057'),
             docsAll(`${iid}-paid`, ['src-iitu-req']),
           ],
         },
         costs: [
           cost(`${iid}-tuition`, 'Обучение', 'tuition', 1_500_000, 1_500_000, 'KZT', ['src-iitu-cost'], 'tuition_only', 'academic_year'),
-        ],
-        funding: [],
-      }],
-    );
-  }
-
-  /* --- ДТУМ, Германия: конфликт источников по сроку документа --- */
-  if (take('tum-cs')) {
-    const iid = `tum-cs-${year}`;
-    add(
-      {
-        id: iid, programId: 'tum-cs', admissionYear: year, label: preliminary ? label : `Приём ${year} (зимний)`,
-        resultValidityControlDate: `${year}-07-15`, isDemo: true,
-        deadlines: [
-          dl(`${iid}-apply`, 'application_submission', `${year}-01-15`, {
-            timezone: 'Europe/Berlin', sourceId: 'src-tum-dl-a',
-          }),
-          dl(`${iid}-docs`, 'document_receipt', `${year}-01-15`, {
-            timezone: 'Europe/Berlin', sourceId: 'src-tum-dl-a',
-            note: 'По версии A. Версия B называет 1 февраля — расхождение не разрешено.',
-          }),
-        ],
-      },
-      [{
-        id: `${iid}-intl`, intakeId: iid, label: 'Международный приём', kind: 'paid',
-        applicantCategories: ['foreign', 'kz_citizen'], requirementTreeVersion: 4, isDemo: true,
-        sourceIds: ['src-tum-req', 'src-tum-dl-a', 'src-tum-dl-b', 'src-tum-cost'], deadlines: [],
-        requirementTree: {
-          nodeType: 'GROUP', groupType: 'ALL', id: `${iid}-intl-root`, title: 'Условия международного приёма',
-          children: [
-            englishAny(`${iid}-intl`, ['src-tum-req'], 6.5, 88),
-            leafGpa(`${iid}-intl-gpa`, 'Средний балл аттестата от 4.6', 'gpa_5', 4.6, ['src-tum-req'], 'gpa:5'),
-            stemAtLeast(`${iid}-intl`, ['src-tum-req'], 2),
-            {
-              nodeType: 'GROUP', groupType: 'ALL', id: `${iid}-intl-docs`, title: 'Документы',
-              children: [
-                leafDoc(`${iid}-intl-leaf-diploma`, 'Аттестат о среднем образовании', 'school_certificate', ['src-tum-req'], 'doc:school_certificate'),
-                // По этому узлу открыт конфликт источников.
-                leafDoc(`${iid}-intl-leaf-deadline-doc`, 'Заверенный перевод аттестата', 'certified_translation', ['src-tum-dl-a', 'src-tum-dl-b'], 'doc:certified_translation'),
-              ],
-            },
-          ],
-        },
-        costs: [
-          cost(`${iid}-semester`, 'Семестровый взнос', 'one_time', 170, 170, 'EUR', ['src-tum-cost'], 'tuition_only', 'academic_year'),
-          cost(`${iid}-living`, 'Проживание в Мюнхене', 'living', 11_000, 14_000, 'EUR', ['src-tum-cost'], 'total', 'academic_year', true, true),
-        ],
-        funding: [],
-      }],
-    );
-  }
-
-  /* --- ДТУА, Турция --- */
-  if (take('metu-cs')) {
-    const iid = `metu-cs-${year}`;
-    add(
-      {
-        id: iid, programId: 'metu-cs', admissionYear: year, label,
-        resultValidityControlDate: `${year}-07-01`, isDemo: true,
-        deadlines: [dl(`${iid}-apply`, 'application_submission', `${year}-05-20`, {
-          timezone: 'Europe/Istanbul', sourceId: 'src-metu-dl',
-        })],
-      },
-      [{
-        id: `${iid}-intl`, intakeId: iid, label: 'Международный приём', kind: 'paid',
-        applicantCategories: ['foreign', 'kz_citizen'], requirementTreeVersion: 2, isDemo: true,
-        sourceIds: ['src-metu-req', 'src-metu-dl', 'src-metu-cost'], deadlines: [],
-        requirementTree: {
-          nodeType: 'GROUP', groupType: 'ALL', id: `${iid}-intl-root`, title: 'Условия приёма',
-          children: [
-            englishAny(`${iid}-intl`, ['src-metu-req'], 6.0, 79),
-            leafGpa(`${iid}-intl-gpa`, 'Средний балл аттестата от 4.0', 'gpa_5', 4.0, ['src-metu-req'], 'gpa:5'),
-            docsAll(`${iid}-intl`, ['src-metu-req']),
-          ],
-        },
-        costs: [
-          cost(`${iid}-tuition`, 'Обучение', 'tuition', 2_400, 2_400, 'USD', ['src-metu-cost'], 'tuition_only', 'academic_year'),
-          cost(`${iid}-living`, 'Проживание в Анкаре', 'living', 3_600, 5_000, 'USD', ['src-metu-cost'], 'total', 'academic_year', true, true),
-        ],
-        funding: [],
-      }],
-    );
-  }
-
-  /* --- ДТУА, управление --- */
-  if (take('metu-ba')) {
-    const iid = `metu-ba-${year}`;
-    add(
-      {
-        id: iid, programId: 'metu-ba', admissionYear: year, label,
-        resultValidityControlDate: `${year}-07-01`, isDemo: true,
-        deadlines: [dl(`${iid}-apply`, 'application_submission', `${year}-05-20`, {
-          timezone: 'Europe/Istanbul', sourceId: 'src-metu-dl',
-        })],
-      },
-      [{
-        id: `${iid}-intl`, intakeId: iid, label: 'Международный приём', kind: 'paid',
-        applicantCategories: ['foreign', 'kz_citizen'], requirementTreeVersion: 1, isDemo: true,
-        sourceIds: ['src-metu-req', 'src-metu-dl', 'src-metu-cost'], deadlines: [],
-        requirementTree: {
-          nodeType: 'GROUP', groupType: 'ALL', id: `${iid}-intl-root`, title: 'Условия приёма',
-          children: [
-            englishAny(`${iid}-intl`, ['src-metu-req'], 6.0, 79),
-            leafGpa(`${iid}-intl-gpa`, 'Средний балл аттестата от 3.8', 'gpa_5', 3.8, ['src-metu-req'], 'gpa:5'),
-            docsAll(`${iid}-intl`, ['src-metu-req']),
-          ],
-        },
-        costs: [
-          cost(`${iid}-tuition`, 'Обучение', 'tuition', 2_100, 2_100, 'USD', ['src-metu-cost'], 'tuition_only', 'academic_year'),
         ],
         funding: [],
       }],

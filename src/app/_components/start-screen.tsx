@@ -17,21 +17,13 @@ import { Icon } from './icon';
 
 export function StartScreen({ mode }: { mode: 'own' | 'demo' }) {
   return (
-    <section className="card stack" aria-labelledby="start-heading">
-      <p className="card__eyebrow">С чего начать</p>
-      <h2 id="start-heading">Пока мы ничего о вас не знаем</h2>
+    <section className="start-panel" aria-labelledby="start-heading">
+      <div className="start-panel__copy">
+      <p className="card__eyebrow"><Icon name="spark" size={16} /> Ваш первый шаг</p>
+      <h2 id="start-heading">Начните с короткой анкеты</h2>
       <p className="lede">
-        Рекомендации и план строятся по вашим ответам. Без анкеты показывать
-        персональную цель нечестно — поэтому здесь пусто, а не чужой пример.
+        Ваши интересы, оценки и бюджет — основа подбора программ и плана подготовки.
       </p>
-
-      <ul className="stack-tight small">
-        <li>Короткая анкета: класс, оценки, предметы, экзамены, страны, бюджет и сроки.</li>
-        <li>Диагностика: сильные стороны, ограничения и с чего начинать.</li>
-        <li>Программы с объяснением «почему подходит» и сравнение вариантов.</li>
-        <li>План к выбранной цели: экзамены, документы, сроки и ближайший шаг.</li>
-      </ul>
-
       <div className="actions">
         <Link className="btn" href="/profile/edit">
           Создать мой маршрут <Icon name="arrow" size={16} />
@@ -53,11 +45,21 @@ export function StartScreen({ mode }: { mode: 'own' | 'demo' }) {
           </form>
         )}
       </div>
-
-      <p className="small muted">
-        Демо — отдельный профиль с синтетическими ответами. Ваши собственные ответы он
-        не трогает, и вернуться к ним можно в любой момент.
+      <p className="start-panel__note"><Icon name="shield" size={16} /> Без загрузки документов. Можно отвечать «не знаю».</p>
+      <p className="small muted start-panel__demo-note">
+        Хотите сначала посмотреть результат? Демо откроет отдельный пример,
+        не меняя ваши ответы.
       </p>
+      </div>
+      <div className="start-preview" aria-label="Что вы получите после анкеты">
+        <p className="card__eyebrow">На выходе — не просто список вузов</p>
+        <ol>
+          <li><span className="start-preview__icon"><Icon name="programs" size={22} /></span><div><h3>Программы под ваши условия</h3><p>С причинами выбора и тем, что нужно уточнить.</p></div><span className="start-preview__number">01</span></li>
+          <li><span className="start-preview__icon"><Icon name="goals" size={22} /></span><div><h3>Понятный выбор</h3><p>Сравните варианты по бюджету, языку и срокам.</p></div><span className="start-preview__number">02</span></li>
+          <li><span className="start-preview__icon"><Icon name="route" size={22} /></span><div><h3>План к выбранной программе</h3><p>Экзамены, документы и один ближайший шаг.</p></div><span className="start-preview__number">03</span></li>
+        </ol>
+        <div className="start-preview__foot"><Icon name="check" size={17} /> Вы меняете ответы — подбор меняется вместе с ними.</div>
+      </div>
     </section>
   );
 }
@@ -73,15 +75,13 @@ export function NextSteps() {
   ];
 
   return (
-    <nav className="card stack-tight" aria-label="Следующие шаги">
+    <nav className="next-stages" aria-label="Следующие шаги">
       <p className="card__eyebrow">Что дальше</p>
       <ol className="stack-tight small">
         {steps.map((s, i) => (
           <li key={s.href}>
-            <Link href={s.href}>
-              {i + 1}. {s.label}
-            </Link>{' '}
-            <span className="muted">— {s.detail}</span>
+            <span className="next-stages__number" aria-hidden="true">{i + 1}</span>
+            <Link href={s.href}>{s.label}<span>{s.detail}</span></Link>
           </li>
         ))}
       </ol>

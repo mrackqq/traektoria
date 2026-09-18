@@ -153,13 +153,76 @@ test('Анкета: переход по шагам не теряет введё�
   );
 });
 
+test('Анкета: верхние вкладки шагов идут через сохранение', () => {
+  const page = source('src/app/profile/edit/page.tsx');
+  const step = source('src/app/_components/questionnaire-step.tsx');
+  const nav = source('src/app/_components/step-nav.tsx');
+
+  // Вкладки были обычными ссылками: переход по ним менял `?step=…` мимо формы,
+  // и введённое на текущем шаге пропадало.
+  assert.ok(page.includes('<StepTabs'), 'вкладки рисует компонент с сохранением');
+  assert.ok(
+    !/<Link[\s\S]{0,200}\?step=\$\{s\.id\}/.test(page),
+    'ссылок-вкладок, уводящих мимо формы, на странице больше нет',
+  );
+  assert.ok(page.includes('<StepNavProvider>'), 'шапка и форма связаны общим контекстом');
+
+  // Вкладка не переходит сама: она просит форму сохранить и уйти.
+  assert.match(nav, /e\.preventDefault\(\)/, 'переход по ссылке перехватывается');
+  assert.match(nav, /if \(nav\.pending\) return/, 'во время сохранения повторное нажатие не срабатывает');
+  assert.match(
+    nav,
+    /if \(!nav \|\| !nav\.hasForm\(\)\) return/,
+    'на странице проверки, где формы нет, вкладка остаётся обычной ссылкой',
+  );
+
+  // Форма шага объявляет себя и сохраняет по запросу вкладки.
+  assert.ok(step.includes('useStepNav'), 'форма подключена к навигации по шагам');
+  assert.match(
+    step,
+    /goAfterSave\.current = href;[\s\S]{0,120}requestSubmit\(\)/,
+    'сначала запоминается цель перехода, затем отправляется форма',
+  );
+  assert.match(step, /nav\?\.setPending\(pending\)/, 'вкладки знают о том, что идёт сохранение');
+  assert.match(
+    step,
+    /if \(!state\.ok\) return;/,
+    'конфликт ревизий оставляет пользователя на шаге',
+  );
+});
+
+test('«Что изменилось»: первое заполнение не выглядит правкой', () => {
+  const block = source('src/app/_components/changes.tsx');
+
+  // «не заполнено → 2027» читалось как дефект профиля, а не как ответ.
+  assert.match(block, /c\.firstTime/, 'первое заполнение отделено от правки');
+  assert.match(block, /Заполнено впервые/, 'у первого заполнения свой заголовок');
+  assert.match(
+    block,
+    /Изменено[\s\S]{0,400}было «\{c\.before\}», стало «\{c\.after\}»/,
+    'правка существующего ответа показывается как было/стало',
+  );
+  assert.ok(
+    !/\{c\.before\}[\s\S]{0,40}→/.test(block),
+    'стрелки «не заполнено → значение» для первого ответа больше нет',
+  );
+
+  // Ограничения, которые снимать нельзя.
+  assert.match(
+    block,
+    /summary\.profileRevisionAfter !== profileRevision/,
+    'сводка показывается только для текущей ревизии',
+  );
+  assert.ok(block.includes('Рекомендации') && block.includes('План'), 'блоки пересчёта на месте');
+});
+
 test('Шапка не предлагает заполнить анкету тому, кто её уже заполнил', () => {
   const layout = source('src/app/layout.tsx');
 
   assert.ok(layout.includes('isProfileStarted'), 'состояние анкеты читается');
   assert.match(
     layout,
-    /started \? \([\s\S]{0,400}Анкета заполнена/,
+    /started \? \([\s\S]{0,400}Ответы сохранены/,
     'заполнившему показывается другое сообщение',
   );
   assert.match(
@@ -183,4 +246,30 @@ test('Каталог: университеты настоящие, услови�
 
   // Сами значения условий остаются ориентировочными и помечены.
   assert.ok(seed.includes('ОРИЕНТИРОВОЧНЫЕ'), 'в заголовке файла сказано, что значения ориентировочные');
+});
+
+test('UX: ближайшее действие на обзоре показано перед карточками и подробностями', () => {
+  const page = source('src/app/page.tsx');
+  assert.ok(page.indexOf('<NextStep outcome={s.nextAction}') < page.indexOf('className="dashboard"'));
+  assert.ok(page.includes('/route#task-${t.id}'), 'кнопка ведёт к конкретному действию');
+});
+
+test('UX: карта связей необязательна, а текущий шаг имеет прямую ссылку', () => {
+  const page = source('src/app/route/page.tsx');
+  assert.ok(page.includes('<details className="card disclosure">'));
+  assert.ok(page.includes('id={`task-${t.id}`}'));
+  assert.ok(page.indexOf('route-next-heading') < page.indexOf('aria-labelledby="feasibility"'));
+});
+
+test('UX: анкета не показывает технические ревизии на первом плане', () => {
+  const commit = source('src/app/_components/commit-draft.tsx');
+  assert.ok(commit.includes('expectedProfileRevision') && commit.includes('expectedDraftRevision'), 'контроль конкурентных изменений сохранён');
+  assert.ok(!commit.includes('Текущая ревизия профиля'));
+  const nav = source('src/app/_components/nav.tsx');
+  assert.ok(nav.includes("pathname.startsWith('/profile/edit')"), 'в анкете нет второго степпера');
+});
+
+test('UX: статус сохранения сбрасывается при переходе на другой шаг анкеты', () => {
+  const page = source('src/app/profile/edit/page.tsx');
+  assert.match(page, /<QuestionnaireStep\s+key=\{step\.id\}/, 'у каждого шага своё состояние формы');
 });

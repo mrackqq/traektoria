@@ -35,7 +35,8 @@ import { checkScaleValue, findScale, scaleForExam } from '../kernel/scales';
 import type { PlainDate } from '../kernel/time';
 import { addDays, daysBetween } from '../kernel/time';
 import { STUDY_FIELD_LABEL_RU, type StudyField } from '../catalog/types';
-import { SUBJECT_OPTIONS, COUNTRY_OPTIONS } from '../i18n/labels';
+import { SUBJECT_OPTIONS, COUNTRY_OPTIONS, capitalize, subjectRu } from '../i18n/labels';
+import { PROFILE_PAIRS, findProfilePair } from '../catalog/kz-rules';
 
 /* ------------------------------------------------------------------ */
 /* Ответы                                                              */
@@ -196,6 +197,22 @@ export function normalizeInterests(raw: readonly string[]): string[] {
   return out;
 }
 
+/**
+ * Пары профильных предметов из перечня Нацтестцентра.
+ *
+ * Список не выдуман: он собран из групп образовательных программ, поэтому в
+ * нём ровно те комбинации, с которыми вообще можно подать заявление.
+ */
+const PROFILE_PAIR_OPTIONS: readonly FieldOption[] = PROFILE_PAIRS.map((pair) => ({
+  value: pair.id,
+  // У части групп оба профильных предмета заменены творческим экзаменом:
+  // «творческий экзамен и творческий экзамен» читается как опечатка.
+  label:
+    pair.subjects[0] === pair.subjects[1]
+      ? capitalize(subjectRu(pair.subjects[0]))
+      : `${capitalize(subjectRu(pair.subjects[0]))} и ${subjectRu(pair.subjects[1])}`,
+}));
+
 const EXAM_STATE_OPTIONS: readonly FieldOption[] = [
   { value: 'not_taken', label: 'Ещё не сдавал и не записан' },
   { value: 'scheduled', label: 'Записан на дату' },
@@ -212,12 +229,45 @@ export interface ManagedExam {
   readonly scaleId: string;
   /** Компоненты, которые спрашиваются отдельно: у них свой порог в условиях. */
   readonly components: readonly string[];
+  /**
+   * Границы ввода для компонентов, если они не совпадают с общей шкалой.
+   *
+   * Блок ЕНТ оценивается из 10, а весь экзамен — из 140; секция NUET из 120,
+   * а весь тест из 240. Подставлять сюда границы общей шкалы значило бы
+   * принимать «грамотность чтения 137».
+   */
+  readonly componentBounds?: Readonly<Record<string, { min: number; max: number; step: number }>>;
 }
 
 export const MANAGED_EXAMS: readonly ManagedExam[] = [
-  { key: 'ent', examKind: 'ЕНТ', title: 'ЕНТ', scaleId: 'ent_0_140', components: [] },
-  { key: 'ielts', examKind: 'IELTS', title: 'IELTS Academic', scaleId: 'ielts_0_9', components: ['writing'] },
+  {
+    key: 'ent', examKind: 'ЕНТ', title: 'ЕНТ', scaleId: 'ent_0_140',
+    // Вузы ставят пороги не только на сумму: NU требует отдельно
+    // математическую грамотность и грамотность чтения.
+    components: ['history_kz', 'math_literacy', 'reading_literacy', 'profile_1', 'profile_2'],
+    componentBounds: {
+      history_kz: { min: 0, max: 20, step: 1 },
+      math_literacy: { min: 0, max: 10, step: 1 },
+      reading_literacy: { min: 0, max: 10, step: 1 },
+      profile_1: { min: 0, max: 50, step: 1 },
+      profile_2: { min: 0, max: 50, step: 1 },
+    },
+  },
+  {
+    key: 'ielts', examKind: 'IELTS', title: 'IELTS Academic', scaleId: 'ielts_0_9',
+    components: ['writing', 'reading', 'listening', 'speaking'],
+  },
   { key: 'toefl', examKind: 'TOEFL', title: 'TOEFL iBT', scaleId: 'toefl_0_120', components: [] },
+  {
+    key: 'nuet', examKind: 'NUET', title: 'NUET', scaleId: 'nuet_0_240',
+    components: ['math', 'critical_thinking'],
+    componentBounds: {
+      math: { min: 0, max: 120, step: 1 },
+      critical_thinking: { min: 0, max: 120, step: 1 },
+    },
+  },
+  { key: 'sat', examKind: 'SAT', title: 'SAT', scaleId: 'sat_400_1600', components: [] },
+  { key: 'act', examKind: 'ACT', title: 'ACT', scaleId: 'act_1_36', components: [] },
 ];
 
 const COMPONENT_LABEL: Record<string, string> = {
@@ -225,6 +275,13 @@ const COMPONENT_LABEL: Record<string, string> = {
   reading: 'Reading',
   listening: 'Listening',
   speaking: 'Speaking',
+  math: 'Mathematics',
+  critical_thinking: 'Critical Thinking and Problem Solving',
+  math_literacy: 'математическую грамотность',
+  reading_literacy: 'грамотность чтения',
+  history_kz: 'историю Казахстана',
+  profile_1: 'первый профильный предмет',
+  profile_2: 'второй профильный предмет',
 };
 
 const HAS_RESULT: readonly string[] = ['result_reported', 'expired'];
@@ -293,16 +350,21 @@ function examFields(exam: ManagedExam): Field[] {
       visibleIf: { kind: 'oneOf', field: stateField, values: HAS_RESULT },
       ...(scale ? { hint: `Допустимо от ${scale.min} до ${scale.max}, шаг ${scale.step}.` } : {}),
     },
-    ...exam.components.map<Field>((c) => ({
+    ...exam.components.map<Field>((c) => {
+      const bounds = exam.componentBounds?.[c];
+      return {
       id: `exam_${exam.key}_c_${c}`,
       label: `${exam.title}: балл за ${COMPONENT_LABEL[c] ?? c}`,
       kind: 'number',
-      ...numberBounds,
+      ...(bounds ? { min: bounds.min, max: bounds.max, step: String(bounds.step) } : numberBounds),
       group: exam.title,
       allowDontKnow: true,
       visibleIf: { kind: 'oneOf', field: stateField, values: HAS_RESULT },
-      hint: 'Компонентный порог проверяется отдельно от общего балла.',
-    })),
+      hint: bounds
+        ? `Отдельная шкала: от ${bounds.min} до ${bounds.max}. Порог по блоку проверяется отдельно от суммы.`
+        : 'Компонентный порог проверяется отдельно от общего балла.',
+      } satisfies Field;
+    }),
     {
       id: `exam_${exam.key}_valid_until`,
       label: `${exam.title}: действителен до`,
@@ -463,7 +525,21 @@ export const STEPS: readonly Step[] = [
     intro:
       'Что у вас уже есть по каждому экзамену. Это меняет план: уже сданный экзамен ' +
       'не будет назначен заново, а по ожидаемому результату останется только ожидание и проверка.',
-    fields: MANAGED_EXAMS.flatMap(examFields),
+    fields: [
+      {
+        id: 'entProfilePair',
+        label: 'Пара профильных предметов ЕНТ',
+        kind: 'select',
+        options: PROFILE_PAIR_OPTIONS,
+        group: 'ЕНТ: профильные предметы',
+        allowDontKnow: true,
+        hint:
+          'Пара закреплена за специальностью и определяет, куда вообще можно подать. ' +
+          'Все четыре строки заявления на грант должны быть из одной пары, а менять ' +
+          'её после первой попытки основного этапа нельзя. Ещё не решили — отметьте «не знаю».',
+      },
+      ...MANAGED_EXAMS.flatMap(examFields),
+    ],
   },
   {
     id: 'resources',
@@ -558,10 +634,13 @@ function validateField(field: Field, draft: DraftValues, errors: FieldError[]): 
   const raw = answer.value;
 
   if (field.kind === 'multiselect') {
-    if (!Array.isArray(raw) || raw.length === 0) {
-      errors.push({ fieldId: field.id, message: 'Выберите хотя бы один вариант' });
+    if (!Array.isArray(raw)) {
+      errors.push({ fieldId: field.id, message: 'Выберите вариант из списка' });
       return;
     }
+    // Пустой список допустим: «ничего из перечисленного» — валидный ответ,
+    // и именно им пользователь очищает ранее выбранное.
+    if (raw.length === 0) return;
     const allowed = new Set((field.options ?? []).map((o) => o.value));
     const unknownValue = raw.find((v) => !allowed.has(v));
     if (unknownValue !== undefined) {
@@ -802,6 +881,7 @@ export function draftFromProfile(profile: ApplicantProfileRevision, at: string):
     citizenship: fromKnown(profile.citizenship, (v) => v),
     applicantCategory: fromKnown(profile.applicantCategory, (v) => v),
     admissionYear: fromKnown(profile.admissionYear, (v) => String(v)),
+    entProfilePair: fromKnown(profile.entProfilePair, (v) => `${v[0]}+${v[1]}`),
     weeklyHours: fromKnown(profile.weeklyHours, (v) => String(v)),
     interests: profile.interests.length > 0
       ? { state: 'answered', value: normalizeInterests(profile.interests) }
@@ -954,6 +1034,25 @@ function examsFromDraft(
   return out;
 }
 
+/**
+ * Пара профильных предметов из ответа анкеты.
+ *
+ * Неизвестный ключ не сохраняется: пара обязана быть из перечня, иначе она
+ * не соответствует ни одной специальности и проверять по ней нечего.
+ */
+function pairFromDraft(
+  profile: ApplicantProfileRevision,
+  v: DraftValues,
+): Known<readonly [string, string]> {
+  const answer = values(v, 'entProfilePair');
+  if (answer.state === 'dont_know') return dontKnow();
+  if (answer.state === 'not_applicable') return notApplicable();
+  if (answer.state !== 'answered') return profile.entProfilePair;
+
+  const pair = typeof answer.value === 'string' ? findProfilePair(answer.value) : null;
+  return pair ? known(pair.subjects) : unanswered();
+}
+
 function subjectsFromDraft(
   profile: ApplicantProfileRevision,
   v: DraftValues,
@@ -1042,6 +1141,7 @@ export function applyDraftToProfile(
       return Number.isFinite(n) && n >= 0 && n <= 60 ? n : null;
     }),
 
+    entProfilePair: pairFromDraft(profile, v),
     interests: normalizeInterests(answeredList(v, 'interests')),
     targetCountries: answeredList(v, 'targetCountries'),
     instructionLanguages: answeredList(v, 'instructionLanguages'),

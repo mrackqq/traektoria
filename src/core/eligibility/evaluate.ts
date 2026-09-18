@@ -25,7 +25,9 @@ import type {
   RequirementNode,
 } from '../kernel/requirement';
 import type { ApplicantProfileRevision, Provenance } from '../kernel/profile';
-import { valueOf } from '../kernel/profile';
+import { EDUCATION_LEVEL_LABEL_RU, valueOf } from '../kernel/profile';
+import { applicantCategoryRu, documentRu, scaleRu, subjectRu } from '../i18n/labels';
+import { samePair } from '../catalog/kz-rules';
 import type { PlainDate, PlanningClock } from '../kernel/time';
 import { daysBetween } from '../kernel/time';
 import { computeFreshness, type CatalogSnapshot, type SourceConflict } from '../catalog/types';
@@ -53,6 +55,8 @@ export type ReasonCode =
   | 'CATEGORY_MISMATCH'
   | 'CATEGORY_UNKNOWN'
   | 'EDUCATION_LEVEL_MISMATCH'
+  | 'ENT_PROFILE_PAIR_UNKNOWN'
+  | 'ENT_PROFILE_PAIR_MISMATCH'
   | 'EDUCATION_LEVEL_UNKNOWN'
   | 'MET_SELF_REPORTED'
   | 'MET_VERIFIED'
@@ -403,6 +407,8 @@ function evaluatePredicate(
       return evaluateCategory(p, profile);
     case 'education_level':
       return evaluateEducationLevel(p, profile);
+    case 'ent_profile_pair':
+      return evaluateProfilePair(p, profile);
   }
 }
 
@@ -540,7 +546,7 @@ function evaluateGpa(
     return {
       status: 'UNKNOWN',
       reasons: ['GPA_UNKNOWN'],
-      explanation: `Средний балл в шкале «${p.scaleId}» не указан. Пересчёт из другой ` +
+      explanation: `Средний балл (${scaleRu(p.scaleId)}) не указан. Пересчёт из другой ` +
         'шкалы без утверждённого правила не выполняется.',
       evidence: [],
     };
@@ -549,16 +555,16 @@ function evaluateGpa(
     return {
       status: 'NOT_MET',
       reasons: ['GPA_BELOW'],
-      explanation: `Средний балл ${g.value} при минимуме ${p.min} (шкала ${p.scaleId}).`,
+      explanation: `Средний балл ${g.value} при минимуме ${p.min} (${scaleRu(p.scaleId)}).`,
       evidence: [
-        { label: `Средний балл (${p.scaleId})`, value: String(g.value) },
+        { label: `Средний балл (${scaleRu(p.scaleId)})`, value: String(g.value) },
         { label: 'Минимум', value: String(p.min) },
       ],
       provenance: g.provenance,
     };
   }
   return met(g.provenance, [
-    { label: `Средний балл (${p.scaleId})`, value: String(g.value) },
+    { label: `Средний балл (${scaleRu(p.scaleId)})`, value: String(g.value) },
     { label: 'Минимум', value: String(p.min) },
   ]);
 }
@@ -572,7 +578,7 @@ function evaluateSubject(
     return {
       status: 'NOT_MET',
       reasons: ['SUBJECT_MISSING'],
-      explanation: `Предмет «${p.subjectId}» не указан в профиле.`,
+      explanation: `Предмет «${subjectRu(p.subjectId)}» не указан в профиле.`,
       evidence: [],
     };
   }
@@ -581,7 +587,7 @@ function evaluateSubject(
       return {
         status: 'UNKNOWN',
         reasons: ['SUBJECT_SCORE_BELOW'],
-        explanation: `Балл по предмету «${p.subjectId}» в нужной шкале не указан.`,
+        explanation: `Балл по предмету «${subjectRu(p.subjectId)}» в нужной шкале не указан.`,
         evidence: [],
         provenance: s.provenance,
       };
@@ -590,9 +596,9 @@ function evaluateSubject(
       return {
         status: 'NOT_MET',
         reasons: ['SUBJECT_SCORE_BELOW'],
-        explanation: `«${p.subjectId}»: ${s.score} при минимуме ${p.minScore}.`,
+        explanation: `«${subjectRu(p.subjectId)}»: ${s.score} при минимуме ${p.minScore}.`,
         evidence: [
-          { label: p.subjectId, value: String(s.score) },
+          { label: subjectRu(p.subjectId), value: String(s.score) },
           { label: 'Минимум', value: String(p.minScore) },
         ],
         provenance: s.provenance,
@@ -600,7 +606,7 @@ function evaluateSubject(
     }
   }
   return met(s.provenance, [
-    { label: p.subjectId, value: s.score !== undefined ? String(s.score) : 'изучен' },
+    { label: subjectRu(p.subjectId), value: s.score !== undefined ? String(s.score) : 'изучен' },
   ]);
 }
 
@@ -614,7 +620,7 @@ function evaluateDocument(
     return {
       status: 'NOT_MET',
       reasons: ['DOCUMENT_MISSING'],
-      explanation: `Документ «${p.documentKind}» ещё не получен.`,
+      explanation: `Документ «${documentRu(p.documentKind)}» ещё не получен.`,
       evidence: [],
     };
   }
@@ -628,7 +634,7 @@ function evaluateDocument(
       provenance: d.provenance,
     };
   }
-  return met(d.provenance, [{ label: p.documentKind, value: 'получен' }]);
+  return met(d.provenance, [{ label: documentRu(p.documentKind), value: 'получен' }]);
 }
 
 function evaluateCategory(
@@ -648,11 +654,22 @@ function evaluateCategory(
     return {
       status: 'NOT_MET',
       reasons: ['CATEGORY_MISMATCH'],
-      explanation: `Путь доступен категориям: ${p.allowed.join(', ')}.`,
-      evidence: [{ label: 'Ваша категория', value: cat.value }],
+      explanation: `Путь доступен категориям: ${p.allowed.map(applicantCategoryRu).join(', ')}.`,
+      evidence: [{ label: 'Ваша категория', value: applicantCategoryRu(cat.value) }],
     };
   }
-  return met('self_reported', [{ label: 'Категория', value: cat.value }]);
+  return met('self_reported', [{ label: 'Категория', value: applicantCategoryRu(cat.value) }]);
+}
+
+/**
+ * Подпись уровня образования.
+ *
+ * `allowed` в требовании — просто строки из данных каталога, поэтому словарь
+ * читается по строковому ключу, а незнакомый код возвращается как есть: это
+ * заметно при проверке и честнее подстановки «—» (то же правило, что в i18n).
+ */
+function educationLevelRu(level: string): string {
+  return (EDUCATION_LEVEL_LABEL_RU as Record<string, string>)[level] ?? level;
 }
 
 function evaluateEducationLevel(
@@ -672,11 +689,56 @@ function evaluateEducationLevel(
     return {
       status: 'NOT_MET',
       reasons: ['EDUCATION_LEVEL_MISMATCH'],
-      explanation: `Требуется один из уровней: ${p.allowed.join(', ')}.`,
-      evidence: [{ label: 'Ваш уровень', value: lvl }],
+      explanation: `Требуется один из уровней: ${p.allowed.map(educationLevelRu).join(', ')}.`,
+      evidence: [{ label: 'Ваш уровень', value: educationLevelRu(lvl) }],
     };
   }
-  return met('self_reported', [{ label: 'Уровень образования', value: lvl }]);
+  return met('self_reported', [{ label: 'Уровень образования', value: educationLevelRu(lvl) }]);
+}
+
+/**
+ * Пара профильных предметов ЕНТ.
+ *
+ * Самое жёсткое условие казахстанского приёма: с чужой парой подать на
+ * специальность нельзя вообще, каким бы высоким ни был балл. Поэтому «пара не
+ * та» — это NOT_MET, а не пониженный приоритет, а «пара не выбрана» — UNKNOWN:
+ * десятикласснику ещё предстоит её выбрать, и отказывать ему не за что.
+ */
+function evaluateProfilePair(
+  p: Extract<LeafPredicate, { type: 'ent_profile_pair' }>,
+  profile: ApplicantProfileRevision,
+): PredicateResult {
+  const required = `${subjectRu(p.subjects[0])} и ${subjectRu(p.subjects[1])}`;
+  const mine = valueOf(profile.entProfilePair);
+
+  if (mine === undefined) {
+    return {
+      status: 'UNKNOWN',
+      reasons: ['ENT_PROFILE_PAIR_UNKNOWN'],
+      explanation:
+        `Не указано, какой парой профильных предметов вы сдаёте ЕНТ. ` +
+        `Для этой специальности нужна пара «${required}».`,
+      evidence: [{ label: 'Нужная пара', value: required }],
+    };
+  }
+
+  if (!samePair(mine, p.subjects)) {
+    const yours = `${subjectRu(mine[0])} и ${subjectRu(mine[1])}`;
+    return {
+      status: 'NOT_MET',
+      reasons: ['ENT_PROFILE_PAIR_MISMATCH'],
+      explanation:
+        `Нужна пара «${required}», а вы сдаёте «${yours}». С другой парой подать ` +
+        'на эту специальность нельзя независимо от балла, а менять пару после ' +
+        'первой попытки основного этапа не разрешено.',
+      evidence: [
+        { label: 'Нужная пара', value: required },
+        { label: 'Ваша пара', value: yours },
+      ],
+    };
+  }
+
+  return met('self_reported', [{ label: 'Профильная пара ЕНТ', value: required }]);
 }
 
 /** ENG-02: MET по самоотчёту подписывается иначе, чем официально подтверждённое. */

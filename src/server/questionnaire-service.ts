@@ -432,7 +432,11 @@ export function parseAnswer(
 ): Answer {
   if (mode === 'dont_know') return { state: 'dont_know' };
   if (mode === 'not_applicable') return { state: 'not_applicable' };
-  if (list) return list.length > 0 ? { state: 'answered', value: list } : { state: 'unanswered' };
+  // Пустой список — это ОТВЕТ «ничего не выбрано», а не отсутствие ответа.
+  // `list` передаётся только для полей множественного выбора, которые реально
+  // были на форме; раньше пустой список превращался в «не отвечено», и снятие
+  // всех галочек не могло очистить профиль.
+  if (list) return { state: 'answered', value: list };
   if (raw === null || raw.trim() === '') return { state: 'unanswered' };
   return { state: 'answered', value: raw };
 }

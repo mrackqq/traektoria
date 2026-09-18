@@ -140,3 +140,74 @@ test('Факты в области субъекта включают профи�
     'чужая программа недоступна',
   );
 });
+
+/* ------------------------------------------------------------------ */
+/* Примеры, которые фильтр пропускал                                   */
+/* ------------------------------------------------------------------ */
+
+test('Средний балл не подтверждает порог IELTS в одном предложении', () => {
+  // 4.6 — настоящий средний балл профиля, но порог IELTS здесь 6.
+  // Раньше проверка объединяла показатели предложения, и оба числа проходили.
+  const problem = checkScoped(
+    'Ваш средний балл GPA 4.6, поэтому требуется IELTS 4.6.',
+    PATH_A,
+    CAT,
+  );
+
+  assert.ok(problem, 'второе число не подтверждено');
+  assert.equal(problem!.code, 'WRONG_MEASURE');
+  assert.match(problem!.detail, /требованию программы/);
+});
+
+test('Неверный средний балл отбрасывается: кириллица распознаётся', () => {
+  // Раньше /средн\w*\s+балл/ не срабатывал на «средний»: \w не покрывает
+  // кириллицу, показатель не определялся, и 8 проходило как мелкое число.
+  const problem = checkScoped('Средний балл 8.', PATH_A, CAT);
+
+  assert.ok(problem, 'число обязано подтверждаться фактом');
+  assert.equal(problem!.code, 'WRONG_MEASURE');
+});
+
+test('Неподтверждённое требование ЕНТ отбрасывается', () => {
+  // ЕНТ не работал:  опирается на \w, а кириллица в него не входит.
+  const problem = checkScoped('Требуется ЕНТ 5.', PATH_A, CAT);
+
+  assert.ok(problem, 'порога ЕНТ у этой программы нет');
+  assert.equal(problem!.code, 'WRONG_MEASURE');
+});
+
+test('Настоящий результат пользователя проходит, а требование с тем же числом — нет', () => {
+  const withEnt = catalogue();
+  withEnt.add({ subject: { kind: 'profile' }, measure: 'exam_score_ent', valueKind: 'number',
+    display: '95', normalized: '95', label: 'Ваш результат ЕНТ' });
+
+  assert.equal(
+    checkScoped('Ваш результат ЕНТ 95 уже есть.', PATH_A, withEnt),
+    null,
+    'результат пользователя подтверждён',
+  );
+
+  const asRequirement = checkScoped('Требуется ЕНТ 95.', PATH_A, withEnt);
+  assert.ok(asRequirement, 'то же число как требование программы не подтверждено');
+  assert.equal(asRequirement!.code, 'WRONG_MEASURE');
+});
+
+test('Корректные утверждения по разным показателям проходят', () => {
+  const ok = [
+    'Ваш средний балл 4.6 выше порога этой программы.',
+    'Нужен IELTS от 6 баллов.',
+    'Обязательные расходы 1 300 000 ₸ укладываются в бюджет 3 000 000 ₸.',
+    'Ближайшая отсечка — 5 июля 2027 года.',
+    'Разбейте подготовку на 3 этапа.',
+  ];
+
+  for (const text of ok) {
+    assert.equal(checkScoped(text, PATH_A, CAT), null, text);
+  }
+});
+
+test('Запреты на выдумки сохранены', () => {
+  assert.equal(checkScoped('Подайте заявление до 1 марта 2031 года.', PATH_A, CAT)?.code, 'UNGROUNDED_DATE');
+  assert.equal(checkScoped('Обучение бесплатное.', PATH_A, CAT)?.code, 'UNSUPPORTED_ZERO_COST');
+  assert.equal(checkScoped('Стоимость обучения 9 900 000 ₸.', PATH_A, CAT)?.code, 'WRONG_MEASURE');
+});

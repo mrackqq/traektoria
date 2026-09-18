@@ -27,10 +27,10 @@ import { Suspense } from 'react';
 import { AiNextAction, AiPending, AiProfileSummary } from './_components/ai-insight';
 import { getAdviceFor, getPageSession, type PageSession, type SessionSnapshot } from './_lib/session';
 import { Icon } from './_components/icon';
-import { Welcome } from './_components/welcome';
 import { StartScreen } from './_components/start-screen';
 import { ChangesBlock } from './_components/changes';
 import { DiagnosisBlock } from './_components/diagnosis';
+import { outOfScope } from '@core/profile/scope';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,14 +45,36 @@ export default async function OverviewPage() {
     return (
       <div className="stack">
         <header className="stack-tight">
-          <p className="card__eyebrow">Личный маршрут поступления</p>
-          <h1>Давайте найдём ваш путь</h1>
+          <p className="card__eyebrow">Для поступающих на бакалавриат</p>
+          <h1>Куда поступать.<br />И что делать дальше.</h1>
           <p className="lede">
-            Сервис помогает абитуриенту бакалавриата: подбирает программы по вашим
-            данным, объясняет причины и собирает план с ближайшим шагом.
+            От ваших ответов — к выбору программы и понятному плану подготовки.
           </p>
         </header>
         <StartScreen mode={page.context.mode} />
+      </div>
+    );
+  }
+
+  // Граница продукта важнее любого расчёта: школьный маршрут выпускнику
+  // колледжа выглядит правдоподобно и уводит не туда.
+  const limit = outOfScope(s.profile);
+  if (limit) {
+    return (
+      <div className="stack">
+        <header className="stack-tight">
+          <p className="card__eyebrow">Ваше поступление</p>
+          <h1>{limit.title}</h1>
+        </header>
+        <Notice tone="warn" title="Почему мы не строим маршрут">
+          <p>{limit.message}</p>
+          <p className="small">{limit.whatWeCanDo}</p>
+          <div className="actions">
+            <Link className="btn" href="/programs">Открыть каталог программ</Link>
+            <Link className="btn btn--secondary" href="/profile/edit">Изменить анкету</Link>
+          </div>
+        </Notice>
+        <DiagnosisBlock diagnosis={s.diagnosis} />
       </div>
     );
   }
@@ -97,17 +119,17 @@ export default async function OverviewPage() {
   return (
     <div className="stack">
       <header className="page-heading">
-        <div><p className="card__eyebrow">Личный маршрут поступления</p><h1>Ваше будущее начинается здесь</h1>
-        <p className="lede">Цель, ближайшее действие и важные сроки — всё в одном месте.</p></div>
+        <div><p className="card__eyebrow">Ваше поступление</p><h1>Что делать дальше</h1>
+        <p className="lede">Начните с ближайшего шага. Цель и сроки — ниже, чтобы ничего не упустить.</p></div>
       </header>
 
-      <Welcome />
+      <NextStep outcome={s.nextAction} />
 
       <div className="dashboard">
       <div className="dashboard__primary">
       <div className="section-heading"><h2>К чему вы движетесь</h2><Link href="/goals">Все цели <Icon name="chevron" size={13} /></Link></div>
       <section className="card goal-card stack-tight" aria-labelledby="goal-heading">
-        <div className="goal-card__top"><span className="university-mark"><Icon name="programs" size={25} /></span><div><p className="card__eyebrow">Активная цель · {goal.university.shortName}</p><p>{goal.university.city} · {goal.intake.label}</p></div></div>
+        <div className="goal-card__top"><span className="university-mark"><Icon name="programs" size={25} /></span><div><p className="card__eyebrow">{page.goalChosen ? 'Ваша цель' : 'Предложенный вариант'} · {goal.university.shortName}</p><p>{goal.university.city} · {goal.intake.label}</p></div></div>
         <h2 id="goal-heading">
           {goal.program.title}
         </h2>
@@ -157,8 +179,6 @@ export default async function OverviewPage() {
       ) : null}
 
       <ChangesBlock summary={page.lastRecalc} profileRevision={s.profile.revision} />
-
-      <NextStep outcome={s.nextAction} />
 
       <Suspense fallback={<AiPending title="Готовим разбор шага" />}>
         <AiOverview page={page} />
@@ -236,8 +256,8 @@ function NextStep({ outcome }: { outcome: NextActionOutcome }) {
           </span>
         </p>
         <div className="actions">
-          <Link className="btn" href="/route">
-            Перейти к действию <Icon name="arrow" size={16} />
+          <Link className="btn" href={`/route#task-${t.id}`}>
+            Открыть план и начать <Icon name="arrow" size={16} />
           </Link>
         </div>
       </section>

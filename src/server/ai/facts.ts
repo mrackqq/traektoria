@@ -72,30 +72,75 @@ export interface CatalogFact {
  * ровно те показатели, которые мы умеем подтверждать.
  */
 const MEASURE_KEYWORDS: Readonly<Record<FactMeasure, readonly RegExp[]>> = {
-  gpa: [/средн\w*\s+балл/i, /\bGPA\b/i, /аттестат\w*\s+балл/i],
-  requirement_gpa: [/средн\w*\s+балл/i, /\bGPA\b/i],
-  exam_score_ielts: [/\bIELTS\b/i],
-  requirement_ielts: [/\bIELTS\b/i],
-  exam_score_toefl: [/\bTOEFL\b/i],
-  requirement_toefl: [/\bTOEFL\b/i],
-  exam_score_ent: [/\bЕНТ\b/i],
-  requirement_ent: [/\bЕНТ\b/i],
-  tuition_cost: [/стоимост/i, /обучени\w*\s+сто/i, /цен[аыу]/i, /₸/, /тенге/i, /расход/i, /плат[аыу]/i],
-  budget_limit: [/бюджет/i],
-  funding_amount: [/грант/i, /скидк/i, /стипенди/i, /финансировани/i],
-  deadline: [/дедлайн/i, /срок/i, /отсечк/i, /подайте|подача|подать/i, /до\s+\d/i],
-  date_generic: [/\bдат\w*/i],
-  weekly_hours: [/час\w*\s+в\s+недел/i, /недельн\w*\s+нагрузк/i],
-  conditions_count: [/услови\w*\s+выполнен/i, /из\s+\d+\s+услови/i],
-  duration_years: [/длительност/i, /лет\s+обучени/i],
+  gpa: [/средн\p{L}*\s+балл/iu, /GPA/iu, /аттестат\p{L}*\s+балл/iu],
+  requirement_gpa: [/средн\p{L}*\s+балл/iu, /GPA/iu],
+  exam_score_ielts: [/IELTS/iu],
+  requirement_ielts: [/IELTS/iu],
+  exam_score_toefl: [/TOEFL/iu],
+  requirement_toefl: [/TOEFL/iu],
+  exam_score_ent: [/ЕНТ/iu],
+  requirement_ent: [/ЕНТ/iu],
+  tuition_cost: [/стоимост/iu, /обучени\p{L}*\s+сто/iu, /цен[аыу]/iu, /₸/u, /тенге/iu, /расход/iu, /плат[аыу]/iu],
+  budget_limit: [/бюджет/iu],
+  funding_amount: [/грант/iu, /скидк/iu, /стипенди/iu, /финансировани/iu],
+  deadline: [/дедлайн/iu, /срок/iu, /отсечк/iu, /подайте|подача|подать/iu],
+  date_generic: [/дат\p{L}*/iu],
+  weekly_hours: [/час\p{L}*\s+в\s+недел/iu, /недельн\p{L}*\s+нагрузк/iu],
+  conditions_count: [/услови\p{L}*\s+выполнен/iu, /из\s+\d+\s+услови/iu],
+  duration_years: [/длительност/iu, /лет\s+обучени/iu],
 };
 
 /**
- * Утверждения, которые выглядят как факт, но числа не содержат.
+ * Семейство показателя: к какой величине относится число.
  *
- * «Обучение бесплатное» — это утверждение о стоимости: его нельзя принимать
- * без факта стоимости, равного нулю.
+ * Внутри семейства ещё есть разница между результатом пользователя и
+ * требованием программы, но между семействами переноса быть не может:
+ * средний балл никогда не подтверждает порог IELTS.
  */
+type MeasureFamily = 'gpa' | 'ielts' | 'toefl' | 'ent' | 'money' | 'date' | 'hours' | 'duration';
+
+const FAMILY_OF: Readonly<Record<FactMeasure, MeasureFamily>> = {
+  gpa: 'gpa',
+  requirement_gpa: 'gpa',
+  exam_score_ielts: 'ielts',
+  requirement_ielts: 'ielts',
+  exam_score_toefl: 'toefl',
+  requirement_toefl: 'toefl',
+  exam_score_ent: 'ent',
+  requirement_ent: 'ent',
+  tuition_cost: 'money',
+  budget_limit: 'money',
+  funding_amount: 'money',
+  deadline: 'date',
+  date_generic: 'date',
+  weekly_hours: 'hours',
+  conditions_count: 'duration',
+  duration_years: 'duration',
+};
+
+/** Семейства, в которых число всегда фактическое: балл, сумма, срок. */
+const FACTUAL_FAMILIES: ReadonlySet<MeasureFamily> = new Set<MeasureFamily>([
+  'gpa', 'ielts', 'toefl', 'ent', 'money', 'date',
+]);
+
+/**
+ * Требование программы или результат пользователя.
+ *
+ * «Требуется IELTS 6» и «у вас IELTS 6» — разные утверждения, и подтверждать
+ * их должны разные факты.
+ */
+type Stance = 'requirement' | 'result' | 'any';
+
+const REQUIREMENT_CUE = /требу|нужн|необходим|минимум|не\s+ниже|порог|от\s+\d/iu;
+const RESULT_CUE = /ваш|у\s+вас|вы\s+набрал|ваши\s+баллы|вами\s+получен/iu;
+
+const REQUIREMENT_MEASURES: ReadonlySet<FactMeasure> = new Set<FactMeasure>([
+  'requirement_gpa', 'requirement_ielts', 'requirement_toefl', 'requirement_ent',
+]);
+const RESULT_MEASURES: ReadonlySet<FactMeasure> = new Set<FactMeasure>([
+  'gpa', 'exam_score_ielts', 'exam_score_toefl', 'exam_score_ent',
+]);
+
 const ZERO_COST_CLAIM = /бесплатн|без\s+плат|не\s+нужно\s+плат|без\s+оплат/i;
 
 /* ------------------------------------------------------------------ */
@@ -216,26 +261,64 @@ export function detectMeasures(sentence: string): FactMeasure[] {
   return out;
 }
 
-/**
- * Показатели, при которых любое число считается фактическим.
- *
- * Балл, сумма, дата и требование не бывают «просто счётом», поэтому
- * послабление для маленьких чисел здесь не действует.
- */
-const FACTUAL_MEASURES: ReadonlySet<FactMeasure> = new Set<FactMeasure>([
-  'gpa', 'requirement_gpa',
-  'exam_score_ielts', 'requirement_ielts',
-  'exam_score_toefl', 'requirement_toefl',
-  'exam_score_ent', 'requirement_ent',
-  'tuition_cost', 'budget_limit', 'funding_amount',
-  'deadline', 'date_generic',
-]);
-
 const GENERIC_MAX = 12;
 const NUMBER_TOKEN_RE = /\d[\d\s ]*(?:[.,]\d+)?/g;
 
 function splitSentences(text: string): string[] {
-  return text.split(/(?<=[.!?;])\s+/).filter((s) => s.trim().length > 0);
+  return text.split(/(?<=[.!?;])\s+/u).filter((s) => s.trim().length > 0);
+}
+
+interface KeywordHit {
+  readonly index: number;
+  readonly measure: FactMeasure;
+}
+
+/** Все упоминания показателей с позицией в предложении. */
+function keywordHits(sentence: string): KeywordHit[] {
+  const hits: KeywordHit[] = [];
+  for (const [measure, patterns] of Object.entries(MEASURE_KEYWORDS) as [FactMeasure, readonly RegExp[]][]) {
+    for (const re of patterns) {
+      const global = new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g');
+      for (const m of sentence.matchAll(global)) {
+        if (m.index !== undefined) hits.push({ index: m.index, measure });
+      }
+    }
+  }
+  return hits.sort((a, b) => a.index - b.index);
+}
+
+/**
+ * К какому утверждению относится число.
+ *
+ * Берётся БЛИЖАЙШЕЕ упоминание показателя слева: в предложении
+ * «ваш средний балл 4.6, поэтому требуется IELTS 4.6» первое число
+ * относится к среднему баллу, второе — к IELTS. Раньше проверка объединяла
+ * все показатели предложения, и балл 4.6 «подтверждал» порог IELTS.
+ */
+function familyForNumber(hits: readonly KeywordHit[], at: number): MeasureFamily | null {
+  let chosen: KeywordHit | null = null;
+  for (const hit of hits) {
+    if (hit.index < at) chosen = hit;
+    else if (chosen === null) chosen = hit; // число раньше любого упоминания
+  }
+  return chosen ? FAMILY_OF[chosen.measure] : null;
+}
+
+/** Требование это или результат — по словам вокруг числа. */
+function stanceFor(sentence: string, at: number): Stance {
+  const before = sentence.slice(0, at);
+  // Смотрим последнюю подсказку: она относится к ближайшему утверждению.
+  const req = lastIndexOfMatch(before, REQUIREMENT_CUE);
+  const res = lastIndexOfMatch(before, RESULT_CUE);
+  if (req === -1 && res === -1) return 'any';
+  return req > res ? 'requirement' : 'result';
+}
+
+function lastIndexOfMatch(text: string, re: RegExp): number {
+  const global = new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g');
+  let last = -1;
+  for (const m of text.matchAll(global)) if (m.index !== undefined) last = m.index;
+  return last;
 }
 
 /**
@@ -243,11 +326,12 @@ function splitSentences(text: string): string[] {
  *
  * Правила по порядку:
  *  1. даты сверяются целиком с датами субъекта;
- *  2. если предложение говорит о показателе, число обязано совпасть со
- *     значением факта этого субъекта ПО ЭТОМУ ЖЕ показателю;
- *  3. если показатель не назван, число должно встречаться среди значений
- *     субъекта; мелкие целые считаются счётными и пропускаются;
- *  4. утверждение о бесплатности требует факта нулевой стоимости.
+ *  2. утверждение о бесплатности требует факта нулевой стоимости;
+ *  3. каждое число привязывается к БЛИЖАЙШЕМУ показателю и проверяется
+ *     фактом того же семейства у того же субъекта; требование и результат
+ *     различаются;
+ *  4. послабление для мелких чисел действует только там, где показателя нет
+ *     вовсе: балл, сумма и срок «просто счётом» не бывают.
  */
 export function checkScoped(
   text: string,
@@ -257,10 +341,6 @@ export function checkScoped(
   const scope = catalogue.inScope(subject);
 
   for (const sentence of splitSentences(text)) {
-    const measures = detectMeasures(sentence);
-    const factual = measures.filter((m) => FACTUAL_MEASURES.has(m));
-
-    // 1. Даты — целиком.
     const dates = findDates(sentence);
     if (dates.length > 0) {
       const allowed = new Set(
@@ -275,7 +355,6 @@ export function checkScoped(
       }
     }
 
-    // 4. Бесплатность.
     if (ZERO_COST_CLAIM.test(sentence)) {
       const zeroCost = scope.some(
         (f) => f.measure === 'tuition_cost' && Number(f.normalized) === 0,
@@ -288,29 +367,41 @@ export function checkScoped(
       }
     }
 
-    // 2 и 3. Числа.
+    const hits = keywordHits(sentence);
     const dateRaws = dates.map((d) => d.raw);
-    const numbers = (sentence.match(NUMBER_TOKEN_RE) ?? []).filter(
-      (n) => !dateRaws.some((d) => d.includes(n.trim())),
-    );
 
-    for (const raw of numbers) {
+    for (const m of sentence.matchAll(NUMBER_TOKEN_RE)) {
+      const raw = m[0];
+      const at = m.index ?? 0;
+      if (dateRaws.some((d) => d.includes(raw.trim()))) continue;
+
       const normalized = normalizeNumber(raw);
       const value = Number(normalized);
+      const family = familyForNumber(hits, at);
 
-      if (factual.length > 0) {
-        const allowed = scope.filter((f) => factual.includes(f.measure));
+      if (family !== null && FACTUAL_FAMILIES.has(family)) {
+        const stance = stanceFor(sentence, at);
+        const allowed = scope.filter((f) => {
+          if (FAMILY_OF[f.measure] !== family) return false;
+          if (stance === 'requirement') return REQUIREMENT_MEASURES.has(f.measure);
+          if (stance === 'result') return RESULT_MEASURES.has(f.measure) || !REQUIREMENT_MEASURES.has(f.measure);
+          return true;
+        });
+
         if (!allowed.some((f) => f.normalized === normalized)) {
+          const what =
+            stance === 'requirement' ? 'требованию программы'
+            : stance === 'result' ? 'вашему результату'
+            : 'показателю';
           return {
             code: 'WRONG_MEASURE',
-            detail:
-              `значение ${raw.trim()} не подтверждено фактом по показателю ` +
-              `«${factual.join(', ')}» для этого варианта`,
+            detail: `значение ${raw.trim()} не подтверждено фактом по ${what} для этого варианта`,
           };
         }
         continue;
       }
 
+      // Показателя рядом нет — число считается счётным, но только мелкое.
       if (Number.isInteger(value) && Math.abs(value) <= GENERIC_MAX) continue;
 
       if (!scope.some((f) => f.normalized === normalized)) {

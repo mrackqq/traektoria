@@ -20,7 +20,7 @@ import type {
   ProgressState,
 } from '@core/progress/state';
 import type { ProfileDraft } from '@core/profile/questionnaire';
-import type { RecalcSummary } from '@core/profile/changes';
+import { normalizeRecalcSummary, type RecalcSummary } from '@core/profile/changes';
 
 /** Событие, ожидающее доставки. */
 export interface OutboxRecord extends OutboxMessage {
@@ -110,7 +110,9 @@ export function normalizeUserState(raw: UserState, ownerId: string): UserState {
     profileRevisions: raw.profileRevisions ?? [],
     draft: raw.draft ?? null,
     activeGoalId: raw.activeGoalId ?? null,
-    lastRecalc: raw.lastRecalc ?? null,
+    // Сводка могла быть записана до появления `firstTime`: досчитываем
+    // признак, ничего не переписывая на диске.
+    lastRecalc: normalizeRecalcSummary(raw.lastRecalc),
   };
 }
 

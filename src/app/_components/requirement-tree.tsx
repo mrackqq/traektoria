@@ -13,6 +13,7 @@ import { STATUS_LABEL_RU, type ReqStatus } from '@core/kernel/status';
 import { formatPlainDateRu } from '@core/kernel/time';
 
 import { Badge } from './ui';
+import { readableLabel } from './readable-label';
 
 const STATUS_VIEW: Record<ReqStatus, { tone: 'ok' | 'warn' | 'risk' | 'unknown'; glyph: string }> = {
   MET: { tone: 'ok', glyph: '✓' },
@@ -47,7 +48,7 @@ export function RequirementTree({
   const status = node.outcome.kind === 'evaluated' ? node.outcome.status : null;
 
   return (
-    <li className="task" style={{ marginLeft: level > 0 ? '0' : undefined }}>
+    <li className={`task requirement-node${node.kind !== 'LEAF' ? ' requirement-node--group' : ''}`} data-status={status ?? 'not-applicable'}>
       <div className="stack-tight">
         <h3 className="task__title">{node.title}</h3>
 
@@ -79,13 +80,13 @@ export function RequirementTree({
           ) : null}
         </ul>
 
-        {node.explanation ? <p className="task__outcome">{node.explanation}</p> : null}
+        {node.explanation ? <p className="task__outcome">{readableLabel(node.explanation)}</p> : null}
 
         {node.evidence.length > 0 ? (
           <p className="task__meta">
             {node.evidence.map((e) => (
               <span key={`${e.label}-${e.value}`}>
-                {e.label}: <strong>{e.value}</strong>
+                {readableLabel(e.label)}: <strong>{readableLabel(e.value)}</strong>
               </span>
             ))}
           </p>
@@ -94,7 +95,7 @@ export function RequirementTree({
         <Sources ids={node.sourceIds} catalog={catalog} />
 
         {node.children.length > 0 ? (
-          <ul className="tasks" style={{ marginTop: 'var(--s-3)', paddingLeft: 'var(--s-4)' }}>
+          <ul className="tasks requirement-node__children">
             {node.children.map((c) => (
               <RequirementTree key={c.nodeId} node={c} catalog={catalog} level={level + 1} />
             ))}
@@ -120,10 +121,10 @@ export function Sources({ ids, catalog }: { ids: readonly string[]; catalog: Cat
   }
 
   return (
-    <p className="task__meta">
+    <p className="task__meta sources-line">
       {sources.map((s) => (
         <span key={s.id}>
-          Источник: {s.publisher} · {FRESHNESS_LABEL_RU[s.freshness]}{' '}
+          Источник: <a href={s.url} target="_blank" rel="noreferrer">{s.publisher}</a> · {FRESHNESS_LABEL_RU[s.freshness]}{' '}
           {formatPlainDateRu(s.verifiedAt.slice(0, 10))}
           {s.isDemo ? ' · значение ориентировочное' : ''}
         </span>

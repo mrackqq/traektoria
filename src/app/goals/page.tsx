@@ -28,17 +28,17 @@ export default async function GoalsPage() {
   return (
     <div className="stack">
       <header className="stack-tight">
-        <p className="card__eyebrow">Держите главное в фокусе</p>
-        <h1>Ваши цели</h1>
+        <p className="card__eyebrow">Шаг 3 · Цель поступления</p>
+        <h1>К какой программе строить план</h1>
         <p className="lede">
-          Цель — это кампания приёма и путь подачи. Условия гранта и платного приёма
-          различаются, поэтому они считаются как разные цели, а не как одна программа.
+          Выберите одну программу и вариант поступления: грант или платное обучение.
+          Мы соберём план именно к этой цели. Её можно поменять позже.
         </p>
       </header>
 
       {active ? (
         <section className="card stack-tight" aria-labelledby="active-goal">
-          <p className="card__eyebrow">Активная цель</p>
+          <p className="card__eyebrow">{s.activeGoalSource === 'chosen' ? 'Выбранная вами программа' : 'Предложенный вариант — вы ещё не закрепили цель'}</p>
           <h2 id="active-goal">
             {active.program.title} — {active.university.shortName}
           </h2>
@@ -57,8 +57,8 @@ export default async function GoalsPage() {
             ) : null}
           </ul>
           <div className="actions">
-            <Link className="btn" href="/route">
-              Маршрут к цели
+            <Link className="btn" href={s.activeGoalSource === 'chosen' ? '/route' : `/programs/${active.path.id}#choose-goal`}>
+              {s.activeGoalSource === 'chosen' ? 'Открыть план действий' : 'Посмотреть и выбрать эту программу'}
             </Link>
             <Link className="btn btn--secondary" href={`/programs/${active.path.id}`}>
               Условия и стоимость
@@ -72,15 +72,20 @@ export default async function GoalsPage() {
       )}
 
       <section className="stack-tight" aria-labelledby="other-goals">
-        <h2 id="other-goals">Другие рассмотренные цели ({others.length})</h2>
+        <h2 id="other-goals">Другие варианты ({others.length})</h2>
         <p className="small muted">
           Варианты расположены с учётом известных условий, качества данных и бюджета. Откройте программу, чтобы изучить детали.
         </p>
         <div className="grid">
           {others.map((g) => (
             <article key={g.path.id} className="card stack-tight">
+              {/*
+                Год набора обязателен в подписи: одна и та же программа идёт
+                двумя кампаниями, и без года карточки 2027 и 2028 выглядели
+                как дубликаты.
+              */}
               <p className="card__eyebrow">
-                {g.university.shortName} · {g.path.label}
+                {g.university.shortName} · {g.intake.label} · {g.path.label}
               </p>
               <h3>
                 <Link href={`/programs/${g.path.id}`}>{g.program.title}</Link>

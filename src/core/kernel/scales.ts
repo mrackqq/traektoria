@@ -53,8 +53,43 @@ export const SCALES: readonly ScaleDefinition[] = [
     max: 140,
     step: 1,
     examKind: 'ЕНТ',
-    components: [],
+    // Блоки ЕНТ: у каждого свой пороговый балл, и вуз может требовать
+    // конкретный блок отдельно от суммы (NU — грамотность чтения 8 из 10).
+    components: ['history_kz', 'math_literacy', 'reading_literacy', 'profile_1', 'profile_2'],
     validityMonths: 12,
+  },
+  {
+    id: 'nuet_0_240',
+    label: 'NUET, 0–240',
+    min: 0,
+    max: 240,
+    step: 1,
+    examKind: 'NUET',
+    components: ['math', 'critical_thinking'],
+    // Результат используется в кампании своего года: отдельного срока
+    // действия политика приёма NU не устанавливает.
+    validityMonths: 12,
+  },
+  {
+    id: 'sat_400_1600',
+    label: 'SAT, 400–1600',
+    min: 400,
+    max: 1600,
+    step: 10,
+    examKind: 'SAT',
+    components: [],
+    // Политика приёма NU: сертификат действует два года со дня сдачи.
+    validityMonths: 24,
+  },
+  {
+    id: 'act_1_36',
+    label: 'ACT, 1–36',
+    min: 1,
+    max: 36,
+    step: 1,
+    examKind: 'ACT',
+    components: [],
+    validityMonths: 24,
   },
   {
     id: 'gpa_5',

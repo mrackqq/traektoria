@@ -66,6 +66,9 @@ export function buildDemoProfile(nowIso: string, ownerId: string = DEMO_OWNER_ID
     citizenship: known('KZ'),
     applicantCategory: known('kz_citizen'),
 
+    // Демо-абитуриент идёт на IT: пара закреплена за группой В057.
+    entProfilePair: known(['math', 'informatics'] as const),
+
     interests: ['computer_science', 'engineering'],
     grades: [{ scaleId: 'gpa_5', value: 4.6, provenance: 'self_reported' }],
     subjects: [
@@ -88,7 +91,9 @@ export function buildDemoProfile(nowIso: string, ownerId: string = DEMO_OWNER_ID
       { documentKind: 'school_certificate', obtained: false, provenance: 'self_reported' },
     ],
 
-    targetCountries: ['KZ', 'TR'],
+    // Каталог — только Казахстан: продукт отвечает за один путь поступления
+    // и не делает вид, что проверял правила других стран.
+    targetCountries: ['KZ'],
     instructionLanguages: ['ru', 'en'],
     admissionYear: known(year),
     weeklyHours: known(12),
@@ -123,6 +128,8 @@ export function buildEmptyProfile(nowIso: string, ownerId: string): ApplicantPro
     citizenship: unanswered(),
     applicantCategory: unanswered(),
 
+    entProfilePair: unanswered(),
+
     interests: [],
     grades: [],
     subjects: [],
@@ -139,12 +146,35 @@ export function buildEmptyProfile(nowIso: string, ownerId: string): ApplicantPro
   };
 }
 
-/** Заполнена ли анкета настолько, чтобы подбор имел смысл. */
+/**
+ * Заполнена ли анкета настолько, чтобы подбор имел смысл.
+ *
+ * Считаются ТОЛЬКО ответы пользователя. Номер ревизии сюда не входит:
+ * раньше условие `revision > 1` считало начатой любую анкету, которую хоть
+ * раз применили, — и пустая анкета после применения получала персональную
+ * цель и маршрут, которых пользователь не запрашивал.
+ *
+ * «Не знаю» и «не применимо» — полноценные ответы: человек их выбрал.
+ * Частичное заполнение достаточно: обязательного заполнения всей анкеты нет.
+ */
 export function isProfileStarted(profile: ApplicantProfileRevision): boolean {
+  const answered = (k: { state: string }) => k.state !== 'unanswered';
+
   return (
-    profile.educationLevel.state !== 'unanswered' ||
+    answered(profile.educationLevel) ||
+    answered(profile.expectedGraduation) ||
+    answered(profile.citizenship) ||
+    answered(profile.applicantCategory) ||
+    answered(profile.admissionYear) ||
+    answered(profile.weeklyHours) ||
+    answered(profile.budget) ||
     profile.interests.length > 0 ||
-    profile.admissionYear.state !== 'unanswered' ||
-    profile.revision > 1
+    profile.targetCountries.length > 0 ||
+    profile.instructionLanguages.length > 0 ||
+    profile.subjects.length > 0 ||
+    profile.grades.length > 0 ||
+    profile.exams.length > 0 ||
+    profile.languages.length > 0 ||
+    profile.documents.some((d) => d.obtained)
   );
 }

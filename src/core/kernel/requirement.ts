@@ -65,6 +65,19 @@ export type LeafPredicate =
   | {
       readonly type: 'education_level';
       readonly allowed: readonly string[];
+    }
+  /**
+   * Пара профильных предметов ЕНТ, закреплённая за группой программ.
+   *
+   * Отличается от `subject` принципиально: тот спрашивает «изучали ли вы
+   * предмет», а этот — «сдаёте ли вы ЕНТ именно этой парой». С чужой парой
+   * подать на специальность нельзя вообще, каким бы высоким ни был балл.
+   */
+  | {
+      readonly type: 'ent_profile_pair';
+      readonly subjects: readonly [string, string];
+      /** Код группы образовательных программ, откуда взята пара. */
+      readonly groupCode: string;
     };
 
 export interface RequirementLeaf {

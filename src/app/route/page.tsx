@@ -48,15 +48,14 @@ export default async function RoutePage() {
   if (!goal || !route) {
     return (
       <div className="stack">
-        <h1>Маршрут</h1>
+        <h1>Ваш план действий</h1>
         <Notice tone="warn" title="Маршрут не построен">
           <p>
-            Активной цели нет, поэтому и обратного планирования нет. Выберите кампанию
-            в разделе «Программы».
+            Чтобы составить план, сначала расскажите о себе и выберите программу.
           </p>
           <p>
-            <Link className="btn" href="/programs">
-              К программам
+            <Link className="btn" href={s.profileStarted ? '/programs' : '/profile/edit'}>
+              {s.profileStarted ? 'Выбрать программу' : 'Начать с анкеты'}
             </Link>
           </p>
         </Notice>
@@ -72,22 +71,21 @@ export default async function RoutePage() {
   return (
     <div className="stack">
       <header className="stack-tight">
-        <p className="card__eyebrow">От цели — к конкретным действиям</p>
+        <p className="card__eyebrow">Шаг 4 · Подготовка к поступлению</p>
         <h1>Ваш маршрут поступления</h1>
         <p className="lede">
-          {goal.program.title} — {goal.university.shortName}, {goal.path.label}. Планирование
-          идёт обратным ходом от каждой внешней отсечки; жёсткие даты не переносятся.
+          {goal.program.title} — {goal.university.shortName}, {goal.path.label}.
+          Начните с выделенного шага и отмечайте прогресс. Сроки приёма нужно подтвердить у вуза.
         </p>
         <ul className="badge-row">
           <li>
             <FeasibilityBadge status={route.feasibility.status} />
           </li>
-          <li className="small muted">
+          <li className="small muted route-search-note">
             Рассмотрено вариантов: {s.bridge?.consideredCount ?? 0}
             {s.bridge?.searchComplete ? ', перебор полный' : ', перебор неполный'}
           </li>
         </ul>
-        <div className="actions"><a className="btn" href="#list-heading">Перейти к действиям <Icon name="arrow" size={16} /></a><a className="btn btn--secondary" href="#map-heading">Посмотреть связи</a></div>
       </header>
 
       {/*
@@ -121,6 +119,18 @@ export default async function RoutePage() {
         </Notice>
       ) : null}
 
+      {s.nextAction.kind === 'action' ? (
+        <section className="card next-card route-next stack-tight" aria-labelledby="route-next-heading">
+          <p className="card__eyebrow"><Icon name="route" size={17} /> Начните с этого</p>
+          <h2 id="route-next-heading">{s.nextAction.view.task.template.title}</h2>
+          <p>{s.nextAction.view.task.template.requiredOutcome}</p>
+          <p className="small muted">{s.nextAction.explanation}</p>
+          <a className="btn" href={`#task-${s.nextAction.view.task.id}`}>Перейти к шагу <Icon name="arrow" size={17} /></a>
+        </section>
+      ) : (
+        <Notice title="Что делать сейчас"><p>{s.nextAction.explanation}</p><p>{s.nextAction.hint}</p><a href="#list-heading">Посмотреть действия и их статусы</a></Notice>
+      )}
+
       <section className="card stack-tight" aria-labelledby="feasibility">
         <p className="card__eyebrow">Выполнимость графика</p>
         <h2 id="feasibility">{route.label}</h2>
@@ -151,16 +161,16 @@ export default async function RoutePage() {
         ) : null}
       </section>
 
-      <section className="stack-tight" aria-labelledby="map-heading">
-        <h2 id="map-heading">Карта зависимостей</h2>
+      <details className="card disclosure">
+        <summary id="map-heading"><span><strong>Как связаны действия</strong><small>Откройте карту, если хотите понять порядок подготовки.</small></span><Icon name="chevron" size={19} /></summary>
         <RouteMap views={s.taskViews} {...(nextTaskId ? { nextTaskId } : {})} />
-      </section>
+      </details>
 
-      <section className="stack-tight" aria-labelledby="list-heading">
+      <section className="stack-tight route-actions" aria-labelledby="list-heading">
         <h2 id="list-heading">Действия по порядку</h2>
         <p className="small muted">
-          Порядок — по возможной дате начала. Внешняя отсечка и личная дата отличаются
-          подписью, а не только цветом.
+          Выделен ближайший доступный шаг. У каждого действия есть инструкция,
+          результат и сроки. Если шаг ждёт другой задачи — это указано на карточке.
         </p>
         <ul className="tasks">
           {s.taskViews.map((v) => (
@@ -331,7 +341,7 @@ function TaskItem({
     .join(' ');
 
   return (
-    <li className={classes}>
+    <li className={classes} id={`task-${t.id}`}>
       <div className="stack-tight">
         <h3 className="task__title">
           {isNext ? <span className="visually-hidden">Следующее действие: </span> : null}

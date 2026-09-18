@@ -140,6 +140,16 @@ export interface ApplicantProfileRevision {
   readonly citizenship: Known<string>;
   readonly applicantCategory: Known<string>;
 
+  /**
+   * Пара профильных предметов ЕНТ, под которую сдаётся экзамен.
+   *
+   * Это не «предметы, которые я изучаю»: пара закреплена за группой
+   * образовательных программ и определяет, на какие специальности вообще
+   * можно подать. После первой попытки основного этапа менять её нельзя,
+   * и все четыре строки заявления на грант обязаны быть из одной пары.
+   */
+  readonly entProfilePair: Known<readonly [string, string]>;
+
   readonly interests: readonly string[];
   readonly grades: readonly GradeRecord[];
   readonly subjects: readonly SubjectRecord[];

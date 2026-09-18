@@ -50,6 +50,14 @@ export interface PlannedTask {
   readonly dependsOn: readonly string[];
   /** Внешняя отсечка, которой подчинена задача. */
   readonly boundByDeadlineId: string | null;
+  /**
+   * Закрывает ли задача хотя бы одно КРИТИЧЕСКОЕ условие.
+   *
+   * Нужно, чтобы «ближайшим шагом» не оказывалось действие, которое никого не
+   * отбирает. Аттестат получают все, кто доучился, и ставить его впереди
+   * подготовки к экзамену — значит показывать человеку не тот приоритет.
+   */
+  readonly critical: boolean;
 }
 
 export interface ScheduledTask extends PlannedTask {
@@ -328,6 +336,8 @@ function buildTasks(
   const submit = findTemplate('application:submit');
   if (submit) bySemantic.set('application:submit', { template: submit, closes: new Set() });
 
+  const criticalLeafIds = new Set(leaves.filter((l) => l.critical).map((l) => l.nodeId));
+
   const tasks: PlannedTask[] = [];
   for (const [key, { template, closes }] of bySemantic) {
     tasks.push({
@@ -339,6 +349,10 @@ function buildTasks(
         .filter((k) => bySemantic.has(k))
         .map((k) => `task:${k}`),
       boundByDeadlineId: deadlineForTask(template, deadlines)?.id ?? null,
+      // Подача заявления не закрывает листьев, но обязательна всегда.
+      critical:
+        key === 'application:submit' ||
+        [...closes].some((id) => criticalLeafIds.has(id)),
     });
   }
 

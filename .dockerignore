@@ -1,0 +1,10 @@
+node_modules
+.next
+.next-build
+.data
+.git
+.env
+.env.local
+.env.*.local
+CASE2_AUDIT.md
+TZ-REVIEW.md

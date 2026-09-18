@@ -9,7 +9,7 @@
  * видно, что переменная не пустая.
  */
 
-export const PROMPT_VERSION = 'v3';
+export const PROMPT_VERSION = 'v4';
 
 /**
  * Версия политики проверки достоверности.
@@ -17,7 +17,7 @@ export const PROMPT_VERSION = 'v3';
  * Входит в ключ кеша: изменение правил проверки обязано обесценить прежние
  * ответы, иначе на экране останется текст, прошедший старую политику.
  */
-export const GUARDRAILS_VERSION = 'g2';
+export const GUARDRAILS_VERSION = 'g3';
 
 export const DEFAULT_MODEL = 'google/gemini-2.5-flash';
 

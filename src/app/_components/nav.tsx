@@ -15,10 +15,10 @@ import { switchModeAction } from '../_actions/questionnaire';
 const SECTIONS: { href: string; label: string; icon: IconName }[] = [
   { href: '/', label: 'Обзор', icon: 'overview' },
   { href: '/programs', label: 'Программы', icon: 'programs' },
-  { href: '/goals', label: 'Цели', icon: 'goals' },
-  { href: '/route', label: 'Маршрут', icon: 'route' },
-  { href: '/scenarios', label: 'Сценарии', icon: 'scenarios' },
-  { href: '/profile', label: 'Профиль', icon: 'profile' },
+  { href: '/goals', label: 'Моя цель', icon: 'goals' },
+  { href: '/route', label: 'Мой план', icon: 'route' },
+  { href: '/scenarios', label: 'Что, если…', icon: 'scenarios' },
+  { href: '/profile', label: 'Мои ответы', icon: 'profile' },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -61,9 +61,9 @@ export function WorkspaceBar({ mode }: { mode: 'own' | 'demo' }) {
   const demo = mode === 'demo';
 
   return (
-    <div className="workspace-bar">
+    <div className={`workspace-bar${pathname === '/' && !demo ? ' workspace-bar--overview' : ''}`}>
       <div className="workspace-bar__breadcrumb">
-        <span>{demo ? 'Демонстрационный профиль' : 'Личное пространство'}</span>
+        <span>{demo ? 'Пример маршрута' : 'Ваше поступление'}</span>
         <Icon name="chevron" size={14} />
         <span>{section?.label ?? 'Страница'}</span>
       </div>
@@ -85,10 +85,10 @@ export function WorkspaceBar({ mode }: { mode: 'own' | 'demo' }) {
 }
 
 const JOURNEY = [
-  { href: '/profile/edit', label: 'Расскажите о себе', detail: 'Анкета и результаты' },
-  { href: '/programs', label: 'Найдите программу', detail: 'Подбор и сравнение' },
-  { href: '/goals', label: 'Изучите цель', detail: 'Условия поступления' },
-  { href: '/route', label: 'Двигайтесь по плану', detail: 'Задачи и сроки' },
+  { href: '/profile/edit', label: 'Ваши ответы', detail: 'Интересы и ограничения' },
+  { href: '/programs', label: 'Подбор программ', detail: 'Посмотрите и сравните' },
+  { href: '/goals', label: 'Выбор цели', detail: 'Закрепите программу' },
+  { href: '/route', label: 'План действий', detail: 'Выполняйте шаг за шагом' },
 ];
 
 /**
@@ -117,9 +117,20 @@ export function Journey({ progress }: { progress: JourneyProgress }) {
     progress.goalChosen,
     progress.progressStarted,
   ];
+  // В анкете уже есть собственные шаги; второй степпер только мешает.
+  // На первом экране результат ещё не создан — путь объясняет стартовый блок.
+  if (pathname.startsWith('/profile/edit') || (pathname === '/' && !progress.profileDone)) return null;
+
+  const currentIndex = JOURNEY.findIndex((step, i) =>
+    i === 0 ? pathname.startsWith('/profile') : isActive(pathname, step.href),
+  );
+  const nextIndex = done.findIndex((complete) => !complete);
+  const displayedIndex = currentIndex >= 0 ? currentIndex : nextIndex >= 0 ? nextIndex : 3;
+  const savedLabels = ['Ответы сохранены', 'Подбор доступен', 'Цель выбрана', 'Прогресс начат'];
 
   return (
     <nav className="journey" aria-label="Этапы пути поступления">
+      <div className="journey__caption"><span>{currentIndex >= 0 ? 'Вы сейчас здесь' : 'Ваш следующий этап'}</span><span>Шаг {displayedIndex + 1} из 4</span></div>
       <ol>
         {JOURNEY.map((step, i) => {
           const active = i === 0 ? pathname.startsWith('/profile') : isActive(pathname, step.href);
@@ -128,7 +139,7 @@ export function Journey({ progress }: { progress: JourneyProgress }) {
           const isNext = !complete && done.slice(0, i).every(Boolean);
 
           return (
-            <li key={step.href} data-state={complete ? 'done' : isNext ? 'next' : 'todo'}>
+            <li key={step.href} data-state={complete ? 'done' : isNext ? 'next' : 'todo'} data-current={i === displayedIndex ? 'true' : undefined}>
               <Link
                 href={step.href}
                 {...(active ? { 'aria-current': 'step' as const } : {})}
@@ -139,12 +150,12 @@ export function Journey({ progress }: { progress: JourneyProgress }) {
                 <span>
                   <strong>{step.label}</strong>
                   <small>
-                    {complete ? 'готово' : isNext ? 'сейчас: ' + step.detail : step.detail}
+                    {complete ? savedLabels[i] : step.detail}
                   </small>
                 </span>
                 <Icon name="chevron" size={14} />
                 <span className="visually-hidden">
-                  {complete ? ' — этап пройден' : isNext ? ' — следующий этап' : ' — ещё не начат'}
+                  {complete ? ` — ${savedLabels[i]}` : isNext ? ' — следующий этап' : ' — ещё не начат'}
                 </span>
               </Link>
             </li>

@@ -83,12 +83,17 @@ export default async function ProgramPage({ params }: { params: Promise<{ pathId
             </li>
           ) : null}
         </ul>
+        <div className="actions program-page-actions">
+          <a className="btn" href="#choose-goal">Выбрать программу и построить план</a>
+          <a className="btn btn--ghost" href="#conditions">Проверить требования</a>
+          <a className="btn btn--ghost" href="#costs">Посмотреть стоимость</a>
+        </div>
       </header>
 
       {a.reasons.length > 0 ? (
         <section className="card stack-tight" aria-labelledby="reasons">
           <p className="card__eyebrow">Почему эта программа здесь</p>
-          <h2 id="reasons">Основания подбора</h2>
+          <h2 id="reasons">Почему этот вариант вам показан</h2>
           <ul className="stack-tight">
             {a.reasons.map((r, i) => (
               <li key={i}>{r}</li>
@@ -133,8 +138,8 @@ export default async function ProgramPage({ params }: { params: Promise<{ pathId
       <section className="stack-tight" aria-labelledby="conditions">
         <h2 id="conditions">Условия приёма</h2>
         <p className="muted small">
-          Версия дерева требований: {goal.path.requirementTreeVersion}. Показаны все ветви,
-          включая уже выполненные, — альтернатива не скрывает проблему в соседней.
+          Что уже выполнено, к чему нужно подготовиться и что уточнить.
+          Если есть несколько способов выполнить требование, они показаны отдельно.
         </p>
         <ul className="tasks">
           <RequirementTree node={a.tree} catalog={s.catalog} />
@@ -143,7 +148,7 @@ export default async function ProgramPage({ params }: { params: Promise<{ pathId
 
       <section className="card stack-tight" aria-labelledby="deadlines">
         <p className="card__eyebrow">Кампания</p>
-        <h2 id="deadlines">Внешние отсечки</h2>
+        <h2 id="deadlines">Важные сроки поступления</h2>
         {goal.deadlines.length === 0 ? (
           <p className="muted">Даты не опубликованы источником.</p>
         ) : (

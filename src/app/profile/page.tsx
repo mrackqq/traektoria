@@ -27,6 +27,7 @@ import { Suspense } from 'react';
 
 import { AiPending, AiProfileSummary } from '../_components/ai-insight';
 import { DiagnosisBlock } from '../_components/diagnosis';
+import { NextSection } from '../_components/next-section';
 import { getAdviceFor, getPageSession, type PageSession } from '../_lib/session';
 
 export const metadata = { title: 'Профиль — Траектория' };
@@ -41,15 +42,17 @@ export default async function ProfilePage() {
   return (
     <div className="stack">
       <header className="page-heading">
-        <div><p className="card__eyebrow">Основа персонального подбора</p><h1>Ваш профиль</h1>
+        <div><p className="card__eyebrow">Шаг 1 · Ваши ответы</p><h1>Что мы поняли о вас</h1>
         <p className="lede">
           Образование, результаты и бюджет помогают проверить условия поступления. Меняйте ответы в анкете, когда ваши планы меняются.
         </p>
-        <p className="small muted">Версия профиля {p.revision} · {p.createdAt.slice(0, 10)}</p></div>
-        <Link className="btn" href="/profile/edit">
+        <p className="small muted">Ответы обновлены {p.createdAt.slice(0, 10)}</p></div>
+        <Link className={`btn${s.profileStarted ? ' btn--secondary' : ''}`} href="/profile/edit">
           Изменить анкету <Icon name="arrow" size={16} />
         </Link>
       </header>
+
+      {s.profileStarted ? <NextSection title="Посмотрите программы под ваши условия" description="У каждого варианта есть причины выбора. Затем можно сравнить программы и выбрать цель." href="/programs" label="Перейти к программам" /> : null}
 
       {/* Диагностика по правилам — обязательная и не зависит от модели. */}
       <DiagnosisBlock diagnosis={s.diagnosis} />

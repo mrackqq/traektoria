@@ -95,9 +95,21 @@ export type VisibilityRule =
   /** Поле заполнено и его значение НЕ из перечисленных. */
   | { readonly kind: 'notOneOf'; readonly field: string; readonly values: readonly string[] }
   /** Поле заполнено одним из перечисленных значений. */
-  | { readonly kind: 'oneOf'; readonly field: string; readonly values: readonly string[] };
+  | { readonly kind: 'oneOf'; readonly field: string; readonly values: readonly string[] }
+  /**
+   * Выполнены все вложенные условия.
+   *
+   * Нужно там, где поле зависит сразу от двух ответов. Подробности по
+   * экзамену показываются, только если экзамен и отмечен как нужный, и
+   * по нему выбрано состояние: без второго условия снятая галочка
+   * оставляла на экране осиротевшие поля уже не нужного экзамена.
+   */
+  | { readonly kind: 'allOf'; readonly rules: readonly VisibilityRule[] };
 
 export function ruleHolds(rule: VisibilityRule, values: DraftValues): boolean {
+  // Составное правило поля не адресует: у него есть только вложенные.
+  if (rule.kind === 'allOf') return rule.rules.every((r) => ruleHolds(r, values));
+
   const answer = values[rule.field] ?? UNANSWERED;
 
   switch (rule.kind) {
@@ -294,6 +306,20 @@ function examFields(exam: ManagedExam): Field[] {
     ? { min: scale.min, max: scale.max, step: String(scale.step) }
     : {};
 
+  /**
+   * Подробности спрашиваются только по отмеченным экзаменам.
+   *
+   * Раньше шаг показывал все шесть подряд, и человеку приходилось шесть
+   * раз вручную отказываться от того, что его не касается: 54 поля на
+   * одном шаге. Теперь сначала один вопрос «какие экзамены вас
+   * касаются», и остальное следует из ответа.
+   */
+  const relevant: VisibilityRule = { kind: 'includes', field: 'examsRelevant', value: exam.key };
+  const withGate = (rule: VisibilityRule): VisibilityRule => ({
+    kind: 'allOf',
+    rules: [relevant, rule],
+  });
+
   const fields: Field[] = [
     {
       id: stateField,
@@ -302,7 +328,7 @@ function examFields(exam: ManagedExam): Field[] {
       options: EXAM_STATE_OPTIONS,
       group: exam.title,
       allowDontKnow: true,
-      hint: 'Запись на экзамен и сдача — не результат. Условие закрывает опубликованный балл.',
+      visibleIf: relevant,
     },
     {
       id: `exam_${exam.key}_scheduled`,
@@ -310,7 +336,7 @@ function examFields(exam: ManagedExam): Field[] {
       kind: 'date',
       group: exam.title,
       allowDontKnow: false,
-      visibleIf: { kind: 'oneOf', field: stateField, values: ['scheduled'] },
+      visibleIf: withGate({ kind: 'oneOf', field: stateField, values: ['scheduled'] }),
       appearsBecause: 'Вы отметили, что уже записаны на экзамен.',
     },
     {
@@ -319,7 +345,7 @@ function examFields(exam: ManagedExam): Field[] {
       kind: 'date',
       group: exam.title,
       allowDontKnow: false,
-      visibleIf: { kind: 'oneOf', field: stateField, values: WAS_TAKEN },
+      visibleIf: withGate({ kind: 'oneOf', field: stateField, values: WAS_TAKEN }),
       appearsBecause: 'Вы отметили, что экзамен уже сдан.',
     },
     {
@@ -328,7 +354,7 @@ function examFields(exam: ManagedExam): Field[] {
       kind: 'date',
       group: exam.title,
       allowDontKnow: true,
-      visibleIf: { kind: 'oneOf', field: stateField, values: ['taken_awaiting_result'] },
+      visibleIf: withGate({ kind: 'oneOf', field: stateField, values: ['taken_awaiting_result'] }),
       appearsBecause: 'Результат ещё не опубликован — по этой дате считается ожидание в плане.',
     },
     {
@@ -337,7 +363,7 @@ function examFields(exam: ManagedExam): Field[] {
       kind: 'date',
       group: exam.title,
       allowDontKnow: false,
-      visibleIf: { kind: 'oneOf', field: stateField, values: HAS_RESULT },
+      visibleIf: withGate({ kind: 'oneOf', field: stateField, values: HAS_RESULT }),
       appearsBecause: 'Результат опубликован, поэтому у него есть дата.',
     },
     {
@@ -347,7 +373,7 @@ function examFields(exam: ManagedExam): Field[] {
       ...numberBounds,
       group: exam.title,
       allowDontKnow: false,
-      visibleIf: { kind: 'oneOf', field: stateField, values: HAS_RESULT },
+      visibleIf: withGate({ kind: 'oneOf', field: stateField, values: HAS_RESULT }),
       ...(scale ? { hint: `Допустимо от ${scale.min} до ${scale.max}, шаг ${scale.step}.` } : {}),
     },
     ...exam.components.map<Field>((c) => {
@@ -359,7 +385,7 @@ function examFields(exam: ManagedExam): Field[] {
       ...(bounds ? { min: bounds.min, max: bounds.max, step: String(bounds.step) } : numberBounds),
       group: exam.title,
       allowDontKnow: true,
-      visibleIf: { kind: 'oneOf', field: stateField, values: HAS_RESULT },
+      visibleIf: withGate({ kind: 'oneOf', field: stateField, values: HAS_RESULT }),
       hint: bounds
         ? `Отдельная шкала: от ${bounds.min} до ${bounds.max}. Порог по блоку проверяется отдельно от суммы.`
         : 'Компонентный порог проверяется отдельно от общего балла.',
@@ -371,7 +397,7 @@ function examFields(exam: ManagedExam): Field[] {
       kind: 'date',
       group: exam.title,
       allowDontKnow: true,
-      visibleIf: { kind: 'oneOf', field: stateField, values: ['result_reported'] },
+      visibleIf: withGate({ kind: 'oneOf', field: stateField, values: ['result_reported'] }),
       hint: 'Если срок не указан в отчёте — отметьте «не знаю», мы его не придумаем.',
     },
   ];
@@ -537,6 +563,17 @@ export const STEPS: readonly Step[] = [
           'Пара закреплена за специальностью и определяет, куда вообще можно подать. ' +
           'Все четыре строки заявления на грант должны быть из одной пары, а менять ' +
           'её после первой попытки основного этапа нельзя. Ещё не решили — отметьте «не знаю».',
+      },
+      {
+        id: 'examsRelevant',
+        label: 'Какие экзамены вас касаются',
+        kind: 'multiselect',
+        options: MANAGED_EXAMS.map((e) => ({ value: e.key, label: e.title })),
+        allowDontKnow: false,
+        hint:
+          'Отметьте те, которые сдаёте или собираетесь сдавать. Дальше спросим только ' +
+          'про них. Запись на экзамен и сдача — не результат: условие закрывает ' +
+          'опубликованный балл. Передумаете — вернитесь и снимите отметку.',
       },
       ...MANAGED_EXAMS.flatMap(examFields),
     ],

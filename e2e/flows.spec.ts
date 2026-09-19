@@ -91,7 +91,7 @@ async function clickAction(page: Page, locator: Locator): Promise<void> {
  * Для живого человека это выглядит так же: нажал «Применить анкету» —
  * и ничего не случилось, без единого признака. Здесь тест повторяет клик,
  * потому что проверяет договор «анкета применяется», а не скорость
- * привязки обработчиков. Сам зазор описан в DESIGN_REVIEW.md как дефект.
+ * привязки обработчиков. Сам зазор — известный дефект.
  */
 async function clickUntil(page: Page, button: Locator, until: Locator): Promise<void> {
   for (let attempt = 1; attempt <= 3; attempt++) {

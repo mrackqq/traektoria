@@ -167,6 +167,110 @@ test.describe('Первый визит и демо', () => {
   });
 });
 
+test.describe('Новый посетитель: разделы не обещают лишнего', () => {
+  /**
+   * До первых ответов сервис не знает о человеке ничего — и не должен
+   * делать вид, что знает. Раньше делал: «Мои ответы» обещали «что мы
+   * поняли о вас», а «Программы» под заголовком «какие программы вам
+   * подходят» показывали двадцать пять карточек, все с пометкой «требует
+   * проверки», потому что проверять было нечего.
+   */
+  const SECTIONS: [string, string][] = [
+    ['/programs', 'Программы'],
+    ['/profile', 'Мои ответы'],
+    ['/goals', 'Моя цель'],
+    ['/compare', 'Сравнение'],
+    ['/scenarios', 'Что, если'],
+  ];
+
+  for (const [url, name] of SECTIONS) {
+    test(`${name} (${url}) честно говорит, что данных ещё нет`, async ({ page }) => {
+      await page.goto(url);
+
+      await expect(
+        page.getByRole('heading', { name: 'Сначала расскажите о себе' }),
+        'раздел без данных обязан сказать это прямо',
+      ).toBeVisible();
+
+      await expect(
+        page.locator('main').getByRole('link', { name: /Заполнить анкету/ }),
+        'и дать ровно один переход',
+      ).toHaveCount(1);
+
+      await expect(
+        page.locator('main'),
+        'здесь должно быть сказано, что появится после ответов',
+      ).toContainText('Здесь появится');
+    });
+  }
+
+  test('Подбор не показывает ни одной программы до ответов', async ({ page }) => {
+    await page.goto('/programs');
+
+    await expect(
+      page.locator('article[data-bucket]'),
+      'двадцать пять карточек «требует проверки» — это не подбор, а шум',
+    ).toHaveCount(0);
+  });
+
+  test('Полоса этапов не утверждает, что человек на последнем шаге', async ({ page }) => {
+    // Она считала шаг по адресу страницы, поэтому на «Моём плане»
+    // показывала «Шаг 4 из 4» тому, кто не ответил ни на один вопрос.
+    await page.goto('/route');
+
+    await expect(page.getByRole('navigation', { name: 'Этапы пути поступления' })).toHaveCount(0);
+  });
+
+  test('Разделы, которым нужна анкета, помечены в меню', async ({ page }) => {
+    await page.goto('/');
+
+    const nav = page.getByRole('navigation', { name: 'Основные разделы' });
+    await expect(nav.getByRole('link', { name: /Программы/ })).toContainText('после анкеты');
+    await expect(
+      nav.getByRole('link', { name: /Обзор/ }),
+      'обзор доступен сразу и пометки не требует',
+    ).not.toContainText('после анкеты');
+  });
+
+  test('На обзоре призыв к анкете не дублируется', async ({ page }) => {
+    await page.goto('/');
+
+    await expect(
+      page.getByRole('link', { name: /Заполнить анкету/ }),
+      'дубль призыва в боковой панели заставлял сравнивать две одинаковые кнопки',
+    ).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Первый раз здесь?' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Создать мой маршрут' })).toBeVisible();
+  });
+
+  test('Охват каталога виден до анкеты, а не после', async ({ page }) => {
+    // Решение «стоит ли отвечать на пять разделов» человек принимает здесь.
+    // Без списка вузов оно принимается вслепую.
+    await page.goto('/');
+
+    const scope = page.locator('.start-scope');
+    await expect(scope, 'на первом экране сказано, из чего будет подбор').toBeVisible();
+    await expect(scope).toContainText(/\d+ университет\S* Казахстана/);
+    await expect(scope).toContainText(/\d+ программ\S* бакалавриата/);
+    await expect(
+      scope.getByRole('listitem'),
+      'вузы перечислены поимённо: человек ищет глазами свой',
+    ).not.toHaveCount(0);
+    await expect(
+      scope,
+      'отсутствие вуза в каталоге — тоже ответ, и он дан честно',
+    ).toContainText('Другие вузы пока не разобраны');
+  });
+
+  test('Пустой подбор говорит, что в каталоге уже есть', async ({ page }) => {
+    await page.goto('/programs');
+
+    await expect(page.locator('.needs-answers__scope')).toContainText(
+      /Сейчас в каталоге: \d+ университет/,
+    );
+  });
+});
+
 test.describe('Анкета', () => {
   test('Ответ сохраняется при переходе по вкладкам шагов', async ({ page }) => {
     // Это место с историей регрессий: раньше клик по вкладке уводил со шага

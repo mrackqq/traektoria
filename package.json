@@ -12,7 +12,8 @@
     "test": "node --import ./scripts/register-ts-resolve.mjs --test --experimental-strip-types --experimental-test-module-mocks \"src/**/*.test.ts\"",
     "test:coverage": "node --import ./scripts/register-ts-resolve.mjs --test --experimental-strip-types --experimental-test-module-mocks --experimental-test-coverage --test-coverage-lines=92 --test-coverage-branches=82 --test-coverage-functions=92 \"src/**/*.test.ts\"",
     "verify": "npm run typecheck && npm run test:coverage",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "shots": "playwright test --config playwright.shots.config.ts"
   },
   "dependencies": {
     "next": "15.5.3",

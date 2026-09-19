@@ -11,7 +11,7 @@ import type { Metadata, Viewport } from 'next';
 
 import './globals.css';
 import Link from 'next/link';
-import { Journey, Nav, WorkspaceBar } from './_components/nav';
+import { Journey, Nav, SidebarGuide, WorkspaceBar } from './_components/nav';
 import { visitorContext } from '@/server/session-context';
 import { appNow } from '@/server/clock';
 import { getStore } from '@/server/file-store';
@@ -72,23 +72,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <span>траектория<span className="wordmark__sub">Маршрут поступления</span></span>
               </Link>
             </div>
-            <Nav />
-            <div className="sidebar-guide">
+            <Nav profileStarted={started} />
+            {/*
+              До заполнения анкеты подсказка не показывается вовсе: призыв
+              к ней и так стоит на каждом экране по месту. Поэтому здесь
+              остался только вариант «ответы уже есть».
+            */}
+            <SidebarGuide started={started}>
               <span className="sidebar-guide__icon"><Icon name="spark" /></span>
-              {started ? (
-                <>
-                  <h2>Ответы сохранены</h2>
-                  <p>Подбор учитывает ваш профиль. Если планы изменятся, обновите ответы.</p>
-                  <Link href="/profile">Открыть профиль <Icon name="arrow" size={17} /></Link>
-                </>
-              ) : (
-                <>
-                  <h2>Первый раз здесь?</h2>
-                  <p>Ответьте на несколько вопросов — получите программы и план подготовки.</p>
-                  <Link href="/profile/edit">Заполнить анкету <Icon name="arrow" size={17} /></Link>
-                </>
-              )}
-            </div>
+              <h2>Ответы сохранены</h2>
+              <p>Подбор учитывает ваш профиль. Если планы изменятся, обновите ответы.</p>
+              <Link href="/profile">Открыть профиль <Icon name="arrow" size={17} /></Link>
+            </SidebarGuide>
             <div className="sidebar-note"><Icon name="shield" size={17} /><span>Без паспортных данных<br />и сканов документов</span></div>
           </header>
 

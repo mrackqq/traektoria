@@ -25,7 +25,31 @@ function isActive(pathname: string, href: string) {
   return href === '/' ? pathname === '/' : pathname.startsWith(href) || (href === '/programs' && pathname === '/compare');
 }
 
-export function Nav() {
+/**
+ * Подсказка в боковой панели.
+ *
+ * Пока анкета не заполнена, подсказка молчит: на каждом экране призыв к
+ * ней уже сделан крупно и по месту — на обзоре это главная кнопка, в
+ * остальных разделах пустое состояние, которое объясняет, чего не хватает.
+ * Вторая такая же ссылка рядом не помогает, а заставляет сравнивать две
+ * одинаковые кнопки и гадать, ведут ли они в разное.
+ *
+ * После заполнения подсказка снова полезна: она показывает, что ответы
+ * сохранены, и даёт быстрый путь к их изменению.
+ */
+export function SidebarGuide({
+  started,
+  children,
+}: {
+  started: boolean;
+  children: React.ReactNode;
+}) {
+  if (!started) return null;
+
+  return <div className="sidebar-guide">{children}</div>;
+}
+
+export function Nav({ profileStarted = true }: { profileStarted?: boolean }) {
   const pathname = usePathname();
 
   return (
@@ -34,10 +58,30 @@ export function Nav() {
       <ul className="nav__list">
         {SECTIONS.map((s) => {
           const active = isActive(pathname, s.href);
+          // До первых ответов разделы открываются, но показать им нечего.
+          // Раньше об этом можно было узнать только зайдя: человек кликал
+          // «Программы» и получал страницу, которая обещает подбор, но его
+          // не делает. Помечаем заранее — переход при этом не блокируем,
+          // посмотреть, что там будет, никто не мешает.
+          const locked = !profileStarted && s.href !== '/';
+
           return (
             <li key={s.href}>
-              <Link className="nav__link" href={s.href} {...(active ? { 'aria-current': 'page' as const } : {})}>
-                <Icon name={s.icon} /><span>{s.label}</span><span className="nav__indicator" aria-hidden="true" />
+              <Link
+                className="nav__link"
+                href={s.href}
+                data-locked={locked ? 'true' : undefined}
+                {...(active ? { 'aria-current': 'page' as const } : {})}
+              >
+                <Icon name={s.icon} />
+                <span>{s.label}</span>
+                {locked ? (
+                  <span className="nav__locked">
+                    после анкеты<span className="visually-hidden">: раздел заполнится после анкеты</span>
+                  </span>
+                ) : (
+                  <span className="nav__indicator" aria-hidden="true" />
+                )}
               </Link>
             </li>
           );
@@ -118,8 +162,14 @@ export function Journey({ progress }: { progress: JourneyProgress }) {
     progress.progressStarted,
   ];
   // В анкете уже есть собственные шаги; второй степпер только мешает.
-  // На первом экране результат ещё не создан — путь объясняет стартовый блок.
-  if (pathname.startsWith('/profile/edit') || (pathname === '/' && !progress.profileDone)) return null;
+  if (pathname.startsWith('/profile/edit')) return null;
+
+  // Пока анкета не заполнена, полоса этапов вводила в заблуждение: она
+  // считала шаг по АДРЕСУ страницы, поэтому человеку, не ответившему ни на
+  // один вопрос, на разделе «Мой план» показывала «Шаг 4 из 4» — будто он
+  // у финиша. До первых ответов этапов ещё нет, и каждый раздел сам
+  // объясняет, чего ждёт; лишний индикатор тут только мешает.
+  if (!progress.profileDone) return null;
 
   const currentIndex = JOURNEY.findIndex((step, i) =>
     i === 0 ? pathname.startsWith('/profile') : isActive(pathname, step.href),

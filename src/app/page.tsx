@@ -31,6 +31,7 @@ import { StartScreen } from './_components/start-screen';
 import { ChangesBlock } from './_components/changes';
 import { DiagnosisBlock } from './_components/diagnosis';
 import { outOfScope } from '@core/profile/scope';
+import { describeCatalog, summarizeCatalog } from '@core/catalog/summary';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,6 +43,9 @@ export default async function OverviewPage() {
   // Пока анкета не заполнена, персональной цели и маршрута не существует.
   // Показывать чужой пример как «ваш результат» нельзя.
   if (!s.profileStarted) {
+    // Охват считается из того же каталога, по которому потом идёт подбор:
+    // число на первом экране и число в результате — одно и то же число.
+    const summary = summarizeCatalog(s.catalog.universities, s.catalog.programs);
     return (
       <div className="stack">
         <header className="stack-tight">
@@ -51,7 +55,11 @@ export default async function OverviewPage() {
             От ваших ответов — к выбору программы и понятному плану подготовки.
           </p>
         </header>
-        <StartScreen mode={page.context.mode} />
+        <StartScreen
+          mode={page.context.mode}
+          scope={describeCatalog(summary)}
+          universities={summary.shortNames}
+        />
       </div>
     );
   }

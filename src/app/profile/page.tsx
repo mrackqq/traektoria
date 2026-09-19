@@ -20,6 +20,7 @@ import {
 } from '@core/kernel/profile';
 import { formatMoneyRu } from '@core/kernel/money';
 import { applicantCategoryRu, citizenshipRu, subjectRu, documentRu, scaleRu, examRu, capitalize } from '@core/i18n/labels';
+import { NeedsAnswers } from '../_components/needs-answers';
 import { Icon } from '../_components/icon';
 
 import { Badge, Notice } from '../_components/ui';
@@ -37,6 +38,19 @@ export const dynamic = 'force-dynamic';
 export default async function ProfilePage() {
   const page = await getPageSession();
   const s = page.snapshot;
+
+  if (!s.profileStarted) {
+    return (
+      <NeedsAnswers
+        lede="Диагностика — это разбор ваших ответов: сильные стороны, ограничения и что стоит закрыть в первую очередь."
+        gives={[
+          'Сильные стороны вашего профиля',
+          'Ограничения и что на них влияет',
+          'Каких ответов не хватает для точного подбора',
+        ]}
+      />
+    );
+  }
   const p = s.profile;
 
   return (

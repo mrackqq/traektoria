@@ -28,6 +28,10 @@ const DATA_DIR = path.join(os.tmpdir(), 'traektoria-e2e');
 
 export default defineConfig({
   testDir: './e2e',
+  // Съёмка экранов — инструмент для дизайн-разбора, а не проверка: она
+  // ничего не утверждает, только сохраняет картинки. В общем прогоне и в
+  // CI ей делать нечего, запускается отдельной командой `npm run shots`.
+  testIgnore: ['**/shots*.spec.ts'],
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   /**

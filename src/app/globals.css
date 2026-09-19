@@ -668,3 +668,57 @@ h2 { font-size: 23px; }
   .journey__caption { display: none; }
   .disclosure > * { display: block; }
 }
+
+/* ------------------------------------------------------------------ */
+/* Честное пустое состояние до первых ответов                          */
+/* ------------------------------------------------------------------ */
+
+/* Раздел, которому пока нечего показать, не должен выглядеть поломкой:
+   это нормальное состояние нового посетителя, а не ошибка. Поэтому
+   спокойная поверхность, а не предупреждение. */
+.needs-answers { max-width: 640px; background: #f7faf6; border-color: #dfe8d8; box-shadow: none; }
+.needs-answers h2 { font-size: 24px; }
+.needs-answers .lede { margin-bottom: 4px; }
+.needs-answers__gives { padding: 18px 20px; margin-block: 4px; background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 13px; }
+.needs-answers__gives .card__eyebrow { margin-bottom: 10px; }
+.needs-answers__gives ul { margin: 0; padding-left: 20px; }
+.needs-answers__gives li { font-size: 15px; line-height: 1.65; }
+.needs-answers .actions { margin-top: 4px; }
+
+/* Раздел, который заполнится после анкеты. Ссылка остаётся рабочей:
+   посмотреть, что там будет, никто не мешает. */
+/* Подпись переносится на свою строку: в панель шириной 236px она рядом с
+   названием раздела не помещается и обрезается краем. */
+.nav__link[data-locked='true'] { flex-wrap: wrap; align-content: center; padding-block: 7px; }
+.nav__link[data-locked='true'] > span:not(.nav__locked) { flex: 1; min-width: 0; }
+.nav__locked { flex-basis: 100%; margin-left: 33px; font-size: 11px; line-height: 1.3; color: #8d978f; }
+.nav__link[data-locked='true'] { color: #869089; }
+.nav__link[data-locked='true'] svg { opacity: .62; }
+
+/* Охват каталога прямо в пустом состоянии «Программ»: человек пришёл сюда
+   смотреть, что есть, и отправлять его в анкету, не ответив на этот вопрос,
+   значит просить работу авансом. */
+.needs-answers__scope { display: flex; align-items: flex-start; gap: 8px; margin: 2px 0 4px; font-size: 14px; color: #3d604c; }
+.needs-answers__scope svg { flex: none; margin-top: 2px; }
+
+.start-panel__cost { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; font-size: 14px; color: #3d604c; }
+.start-panel__cost svg { flex: none; margin-top: 3px; }
+
+/* Список вузов на первом экране. Он отвечает на вопрос «стоит ли мне тратить
+   время на анкету» до того, как человек её начнёт: свой вуз видно сразу, а
+   его отсутствие — тоже честный и быстрый ответ. */
+.start-scope { grid-column: 1 / -1; padding: 20px 22px; margin-top: 4px; background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 14px; }
+.start-scope__count { margin: 6px 0 12px; font-size: 17px; font-weight: 600; color: var(--c-ink); }
+.start-scope__list { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; padding: 0; list-style: none; }
+.start-scope__list li { padding: 5px 11px; font-size: 13px; color: #3d604c; background: #f2f7ef; border: 1px solid #dfe8d8; border-radius: 999px; }
+
+@media (max-width: 760px) {
+  .needs-answers h2 { font-size: 21px; }
+  .needs-answers__gives { padding: 15px 16px; }
+  .needs-answers__gives li { font-size: 14px; }
+  .start-scope { padding: 16px; }
+  .start-scope__count { font-size: 15px; }
+  /* В нижнем/компактном меню подпись не помещается: там роль берёт на себя
+     само пустое состояние раздела. */
+  .nav__locked { display: none; }
+}

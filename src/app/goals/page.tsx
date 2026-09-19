@@ -15,6 +15,7 @@ import { EXAM_STATE_LABEL_RU } from '@core/kernel/profile';
 
 import { BucketBadge, EligibilityBadge, FeasibilityBadge, Notice } from '../_components/ui';
 import { getSession } from '../_lib/session';
+import { NeedsAnswers } from '../_components/needs-answers';
 
 export const metadata = { title: 'Цели — Траектория' };
 
@@ -22,6 +23,19 @@ export const dynamic = 'force-dynamic';
 
 export default async function GoalsPage() {
   const s = await getSession();
+
+  if (!s.profileStarted) {
+    return (
+      <NeedsAnswers
+        lede="Цель — программа, к которой сервис построит план подготовки. Выбирать её можно только из подходящих вам."
+        gives={[
+          'Выбранную цель и почему она подходит',
+          'Другие варианты, между которыми можно переключиться',
+          'Что изменится в плане при смене цели',
+        ]}
+      />
+    );
+  }
   const active = s.activeGoal;
   const others = s.goals.filter((g) => g.path.id !== active?.path.id);
 

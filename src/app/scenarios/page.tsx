@@ -17,6 +17,7 @@ import { formatPlainDateRu } from '@core/kernel/time';
 
 import { Badge, FeasibilityBadge, Notice } from '../_components/ui';
 import { getSession } from '../_lib/session';
+import { NeedsAnswers } from '../_components/needs-answers';
 
 export const metadata = { title: 'Сценарии — Траектория' };
 export const dynamic = 'force-dynamic';
@@ -28,6 +29,19 @@ export default async function ScenariosPage({
 }) {
   const { case: caseId } = await searchParams;
   const session = await getSession();
+
+  if (!session.profileStarted) {
+    return (
+      <NeedsAnswers
+        lede="Стресс-тест проверяет ваш план на неприятностях: задержке результата, пропущенной сессии, урезанном бюджете."
+        gives={[
+          'Что будет с планом, если что-то пойдёт не так',
+          'Какие сроки перестанут сходиться',
+          'Что из уже сделанного сохранится',
+        ]}
+      />
+    );
+  }
   const demo = findDemoScenario(caseId);
   const run = runScenario(session, demo.title, demo.build(session));
   const diff = run.diff;

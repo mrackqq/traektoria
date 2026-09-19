@@ -34,6 +34,7 @@ import { Suspense } from 'react';
 import { AiPending, AiTaskGuidance } from '../_components/ai-insight';
 import { getAdviceFor, getPageSession, type PageSession, type SessionSnapshot } from '../_lib/session';
 import { Icon } from '../_components/icon';
+import { NeedsAnswers } from '../_components/needs-answers';
 
 export const metadata = { title: 'Маршрут — Траектория' };
 
@@ -45,17 +46,33 @@ export default async function RoutePage() {
   const goal = s.activeGoal;
   const route = s.route;
 
+  // Новичку здесь нечего показать — но это не тревога, а нормальное начало.
+  // Янтарная плашка «Маршрут не построен» сообщала о поломке там, где ничего
+  // не сломалось, и выбивалась из того, как о пустоте говорят остальные
+  // разделы. Отсутствие цели у заполнившего анкету — другое дело: там
+  // действительно нужно вмешаться, и предупреждение остаётся.
+  if (!s.profileStarted) {
+    return (
+      <NeedsAnswers
+        lede="План собирается под конкретную программу: экзамены, документы и сроки зависят от того, куда вы поступаете."
+        gives={[
+          'Шаги до подачи документов в понятном порядке',
+          'Сроки, к которым каждый шаг надо успеть',
+          'Один ближайший шаг, с которого начать сегодня',
+        ]}
+      />
+    );
+  }
+
   if (!goal || !route) {
     return (
       <div className="stack">
         <h1>Ваш план действий</h1>
         <Notice tone="warn" title="Маршрут не построен">
+          <p>Ответы есть, но программа ещё не выбрана — а план строится под конкретную программу.</p>
           <p>
-            Чтобы составить план, сначала расскажите о себе и выберите программу.
-          </p>
-          <p>
-            <Link className="btn" href={s.profileStarted ? '/programs' : '/profile/edit'}>
-              {s.profileStarted ? 'Выбрать программу' : 'Начать с анкеты'}
+            <Link className="btn" href="/programs">
+              Выбрать программу
             </Link>
           </p>
         </Notice>

@@ -15,14 +15,33 @@ import Link from 'next/link';
 import { switchModeAction } from '../_actions/questionnaire';
 import { Icon } from './icon';
 
-export function StartScreen({ mode }: { mode: 'own' | 'demo' }) {
+export interface StartScreenProps {
+  readonly mode: 'own' | 'demo';
+  /** Фраза охвата каталога, посчитанная из самого каталога. */
+  readonly scope: string;
+  /** Короткие имена вузов — человек ищет глазами свой. */
+  readonly universities: readonly string[];
+}
+
+export function StartScreen({ mode, scope, universities }: StartScreenProps) {
   return (
     <section className="start-panel" aria-labelledby="start-heading">
       <div className="start-panel__copy">
       <p className="card__eyebrow"><Icon name="spark" size={16} /> Ваш первый шаг</p>
-      <h2 id="start-heading">Начните с короткой анкеты</h2>
+      <h2 id="start-heading">Начните с анкеты</h2>
       <p className="lede">
         Ваши интересы, оценки и бюджет — основа подбора программ и плана подготовки.
+      </p>
+      {/*
+        Цена названа числом намеренно. «Короткая анкета» — обещание, которое
+        продукт не держит: разделов пять, а вопросов про экзамены много.
+        Нарушенное на втором экране обещание стоит дороже, чем его отсутствие.
+        Счёт совпадает с тем, что человек увидит в самой анкете: пять шагов
+        с вопросами и шестой — проверка перед применением.
+      */}
+      <p className="start-panel__cost">
+        <Icon name="check" size={16} /> Пять разделов вопросов и проверка в конце.
+        Отвечать всё сразу не нужно — ответы сохраняются на каждом шаге.
       </p>
       <div className="actions">
         <Link className="btn" href="/profile/edit">
@@ -59,6 +78,27 @@ export function StartScreen({ mode }: { mode: 'own' | 'demo' }) {
           <li><span className="start-preview__icon"><Icon name="route" size={22} /></span><div><h3>План к выбранной программе</h3><p>Экзамены, документы и один ближайший шаг.</p></div><span className="start-preview__number">03</span></li>
         </ol>
         <div className="start-preview__foot"><Icon name="check" size={17} /> Вы меняете ответы — подбор меняется вместе с ними.</div>
+      </div>
+      {/*
+        Охват назван до анкеты, а не после.
+        Человек соглашается отвечать на пять разделов, ещё не увидев ни одной
+        программы. Раньше решение «стоит ли оно того» он принимал вслепую:
+        сервис мог охватывать шесть вузов или шестьсот, узнать это было
+        неоткуда. Список вузов отвечает на это за секунду — и честно, включая
+        случай «моего вуза здесь нет».
+      */}
+      <div className="start-scope">
+        <p className="card__eyebrow">Что уже в подборе</p>
+        <p className="start-scope__count">{scope}</p>
+        <ul className="start-scope__list">
+          {universities.map((name) => (
+            <li key={name}>{name}</li>
+          ))}
+        </ul>
+        <p className="small muted">
+          Другие вузы пока не разобраны. Условия и сроки взяты из официальных
+          документов, стоимость и пороговые баллы помечены как непроверенные.
+        </p>
       </div>
     </section>
   );

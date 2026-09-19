@@ -18,6 +18,7 @@ import { Suspense } from 'react';
 
 import { AiComparison, AiPending } from '../_components/ai-insight';
 import { getAdviceFor, getPageSession, type PageSession } from '../_lib/session';
+import { NeedsAnswers } from '../_components/needs-answers';
 import { Icon } from '../_components/icon';
 
 export const metadata = { title: 'Сравнение — Траектория' };
@@ -31,6 +32,19 @@ export default async function ComparePage({
   const params = await searchParams;
   const page = await getPageSession();
   const s = page.snapshot;
+
+  if (!s.profileStarted) {
+    return (
+      <NeedsAnswers
+        lede="Сравнение показывает два-три варианта рядом: стоимость, язык, сроки и условия приёма."
+        gives={[
+          'Программы рядом, строка к строке',
+          'Где варианты расходятся, а где совпадают',
+          'Что по каждому из них известно неточно',
+        ]}
+      />
+    );
+  }
 
   const requested = normalize(params.ids);
   const selected =

@@ -18,6 +18,8 @@ import { Suspense } from 'react';
 
 import { AiPending, AiProgramNotes } from '../_components/ai-insight';
 import { getAdviceFor, getPageSession, type PageSession, type SessionSnapshot } from '../_lib/session';
+import { NeedsAnswers } from '../_components/needs-answers';
+import { describeCatalog, summarizeCatalog } from '@core/catalog/summary';
 import { Icon } from '../_components/icon';
 
 export const metadata = { title: 'Программы — Траектория' };
@@ -27,6 +29,20 @@ export const dynamic = 'force-dynamic';
 export default async function ProgramsPage() {
   const page = await getPageSession();
   const s = page.snapshot;
+
+  if (!s.profileStarted) {
+    return (
+      <NeedsAnswers
+        lede="Подбор строится по вашим ответам: направлению, языку обучения, бюджету и тому, какие экзамены вы сдаёте."
+        scope={describeCatalog(summarizeCatalog(s.catalog.universities, s.catalog.programs))}
+        gives={[
+          'Программы, доступные вам по известным условиям',
+          'Причину, почему показан каждый вариант',
+          'Что именно требует проверки и чего не хватает',
+        ]}
+      />
+    );
+  }
   const { recommendation } = s;
 
   const groups = [

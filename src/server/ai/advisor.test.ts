@@ -664,7 +664,7 @@ test('Неудача не вытесняет удачный ответ друг�
   const goalId = s.activeGoal!.path.id;
   const taskId = s.route!.tasks[0]!.id;
 
-  let ok = mockFetch((url) =>
+  const ok = mockFetch((url) =>
     url.includes('/models') ? jsonResponse({ data: [] }) : completion(validPayload(goalId, taskId)),
   );
   const good = await getAdvice(OWNER, s, { nowMs: AT_MS });

@@ -590,7 +590,7 @@ test('REV-20 / TASK-04: внешнее ожидание показывается
 test('REV-20 / TASK-04: когда всё заблокировано, называется блокирующее действие', () => {
   const blocker = task({ id: 't-blocker', semanticKey: 'ielts:take' });
   const dependent = task({ id: 't-dep', semanticKey: 'ielts:result', dependsOn: ['t-blocker'] });
-  let progress = progressFor([blocker, dependent]);
+  const progress = progressFor([blocker, dependent]);
 
   const wait = applyStatusChange({
     progress,

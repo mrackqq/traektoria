@@ -26,7 +26,7 @@ const revalidated: string[] = [];
 
 mock.module('next/cache', {
   namedExports: {
-    revalidatePath: (p: string) => void revalidated.push(p),
+    revalidatePath: (p: string, type?: string) => void revalidated.push(type ? `${p} (${type})` : p),
     revalidateTag: () => undefined,
   },
 });
@@ -106,8 +106,14 @@ test('Смена статуса на допустимый проходит и о
   );
 
   assert.equal(r.ok, true, JSON.stringify(r));
-  assert.ok(revalidated.includes('/route'), 'маршрут обязан обновиться после команды');
-  assert.ok(revalidated.includes('/'), 'обзор тоже показывает прогресс');
+  // Сброс делается одним вызовом на всё поддерево, а не перечислением
+  // страниц: перечисление заставляло клиент перезапрашивать каждую из них,
+  // и ответ действия приходил с задержкой в десятки секунд.
+  assert.deepEqual(
+    revalidated,
+    ['/ (layout)'],
+    'прогресс меняет все разделы сразу, поэтому сброс должен быть один',
+  );
 });
 
 test('Статус вне перечисления отвергается, а не роняет обработчик', async () => {

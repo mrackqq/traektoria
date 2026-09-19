@@ -33,10 +33,20 @@ import { visitorContext } from '@/server/session-context';
 
 const DEFAULT_BASIS = 'Отметка пользователя в интерфейсе';
 
-function revalidateAll(): void {
-  for (const p of ['/', '/route', '/goals', '/profile', '/programs', '/compare', '/scenarios']) {
-    revalidatePath(p);
-  }
+/**
+ * Один сброс кеша вместо семи.
+ *
+ * Перечисление путей выглядело безобиднее, чем обходилось: в ответ на
+ * действие клиент забирал заново RSC-разметку каждого перечисленного
+ * маршрута, а за каждым стоит полный подбор программ и построение
+ * маршрута. Отметка одного действия тянула за собой семь пересчётов и
+ * отвечала с задержкой в десятки секунд.
+ *
+ * `revalidatePath('/', 'layout')` помечает устаревшим всё поддерево разом:
+ * перерисовывается текущая страница, остальные подтянутся при переходе.
+ */
+function revalidateEverything(): void {
+  revalidatePath('/', 'layout');
 }
 
 export async function changeStatusAction(
@@ -61,7 +71,7 @@ export async function changeStatusAction(
     at: appNow(),
   });
 
-  if (result.ok) revalidateAll();
+  if (result.ok) revalidateEverything();
   return result;
 }
 
@@ -74,7 +84,7 @@ export async function setGoalAction(
   const goalId = String(formData.get('goalId') ?? '');
 
   const result = await setActiveGoal({ ownerId, goalId });
-  if (result.ok) revalidateAll();
+  if (result.ok) revalidateEverything();
   return result;
 }
 
@@ -194,6 +204,6 @@ export async function recordResultAction(
     at: appNow(),
   });
 
-  if (result.ok) revalidateAll();
+  if (result.ok) revalidateEverything();
   return result;
 }

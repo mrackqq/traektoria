@@ -28,25 +28,23 @@ import {
   type SaveStepResult,
 } from '@/server/questionnaire-service';
 
-function revalidateAll(): void {
-  for (const p of ['/', '/profile', '/profile/edit', '/programs', '/compare', '/route', '/goals', '/scenarios']) {
-    revalidatePath(p);
-  }
-}
-
 /**
- * Полный сброс кеша вместе с макетом.
+ * Один сброс кеша вместо восьми.
  *
- * Смена режима меняет не одну страницу, а ВСЁ пространство данных сразу,
- * включая шапку с признаком примера. Постраничного сброса здесь мало:
- * `switchModeAction` перенаправляет на «/», и при переключении со стартового
- * экрана адрес не меняется. Клиентский роутер считал такой переход ничем и
- * оставлял на экране прежнюю разметку — cookie уже стояла, демо уже
- * работало, а человек видел ту же страницу и ту же кнопку «Посмотреть демо».
+ * Раньше каждое действие вызывало `revalidatePath` по списку из восьми
+ * страниц. Выглядело безобидно, но обходилось дорого: клиент в ответ
+ * забирал заново RSC-разметку всех восьми маршрутов, а каждый из них —
+ * это полный подбор программ и построение маршрута. Ответ действия
+ * приходил через десятки секунд, и применение анкеты выглядело зависшим:
+ * кнопка оставалась заблокированной, а на экране висело «Записываем…».
+ *
+ * `revalidatePath('/', 'layout')` помечает устаревшим всё поддерево разом.
+ * Перерисовывается только та страница, где пользователь стоит; остальные
+ * подтянутся при переходе на них. Это и быстрее, и честнее по смыслу:
+ * изменился профиль — изменилось всё, что от него считается.
  */
 function revalidateEverything(): void {
   revalidatePath('/', 'layout');
-  revalidateAll();
 }
 
 export async function saveStepAction(
@@ -86,7 +84,9 @@ export async function saveStepAction(
     at: appNow(),
   });
 
-  if (result.ok) revalidateAll();
+  // Сохранение шага меняет только черновик, который читает сама же анкета
+  // при следующем переходе. Сбрасывать кеш остальных разделов нечему:
+  // подбор и маршрут меняются не здесь, а при применении анкеты.
   return result;
 }
 
@@ -131,7 +131,7 @@ export async function commitDraftAction(
     at: appNow(),
   });
 
-  if (result.ok) revalidateAll();
+  if (result.ok) revalidateEverything();
   return result;
 }
 
@@ -146,7 +146,7 @@ export async function discardDraftAction(
     expectedDraftRevision: Number(formData.get('expectedDraftRevision') ?? 0),
   });
 
-  if (result.ok) revalidateAll();
+  if (result.ok) revalidateEverything();
   return result;
 }
 

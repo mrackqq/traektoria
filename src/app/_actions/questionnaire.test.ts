@@ -26,7 +26,7 @@ const jar = new Map<string, string>([['trk_sid', SESSION]]);
 
 mock.module('next/cache', {
   namedExports: {
-    revalidatePath: (p: string) => void revalidated.push(p),
+    revalidatePath: (p: string, type?: string) => void revalidated.push(type ? `${p} (${type})` : p),
     revalidateTag: () => undefined,
   },
 });
@@ -232,8 +232,13 @@ test('Применение исправленной анкеты создаёт 
 
   assert.equal(r.ok, true, JSON.stringify(r));
   assert.ok((await profileRevision()) > profileBefore, 'ревизия профиля обязана вырасти');
-  assert.ok(revalidated.includes('/programs'), 'подбор обязан пересчитаться');
-  assert.ok(revalidated.includes('/profile/edit'));
+  // Применение анкеты меняет профиль, а значит и весь расчёт: сброс идёт
+  // одним вызовом на поддерево, а не списком страниц.
+  assert.deepEqual(
+    revalidated,
+    ['/ (layout)'],
+    'изменился профиль — устарело всё, что от него считается',
+  );
 });
 
 test('Применение на устаревшей ревизии профиля отвергается', async () => {

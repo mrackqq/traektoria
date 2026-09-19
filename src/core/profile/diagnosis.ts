@@ -14,7 +14,6 @@ import { STUDY_FIELD_LABEL_RU, type StudyField } from '../catalog/types';
 import { getProgram } from '../catalog/types';
 import { flattenLeaves } from '../eligibility/evaluate';
 import type { RecommendationResult } from '../eligibility/recommend';
-import type { ProgramAssessment } from '../eligibility/program-result';
 import { applicantCategoryRu, countryRu, languageRu, subjectRu } from '../i18n/labels';
 import { formatMoneyRu } from '../kernel/money';
 import {

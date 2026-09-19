@@ -20,7 +20,7 @@ import {
   type PlanningClock,
   type WorkCalendar,
 } from '../kernel/time';
-import { addMoney, money, sumMoney, type Money } from '../kernel/money';
+import { sumMoney, type Money } from '../kernel/money';
 import type { EvaluatedNode } from '../eligibility/evaluate';
 import { flattenLeaves } from '../eligibility/evaluate';
 import {

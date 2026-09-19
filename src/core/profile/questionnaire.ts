@@ -31,7 +31,7 @@ import {
   type SubjectRecord,
 } from '../kernel/profile';
 import { fromMajor, type BudgetScope } from '../kernel/money';
-import { checkScaleValue, findScale, scaleForExam } from '../kernel/scales';
+import { checkScaleValue, findScale } from '../kernel/scales';
 import type { PlainDate } from '../kernel/time';
 import { addDays, daysBetween } from '../kernel/time';
 import { STUDY_FIELD_LABEL_RU, type StudyField } from '../catalog/types';

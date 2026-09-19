@@ -8,7 +8,7 @@
 
 import { formatMoneyRu, type Money } from '../kernel/money';
 import { daysBetween, type PlainDate } from '../kernel/time';
-import type { BridgeResult, BridgeRoute, FeasibilityStatus, ScheduledTask } from '../planning/bridge';
+import type { BridgeResult, BridgeRoute, FeasibilityStatus } from '../planning/bridge';
 import { EVENT_LABEL_RU, type ScenarioEvent } from './overlay';
 
 export type TaskChangeKind = 'added' | 'moved' | 'replaced' | 'obsolete' | 'unchanged';

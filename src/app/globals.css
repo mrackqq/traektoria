@@ -1,26 +1,45 @@
 /* Presentation only: no changes to calculations, actions or stored data. */
+/*
+ * Тёмная система «сигнал и неизвестность».
+ *
+ * Серые построены в OKLCH равными шагами по светлоте: слои не слипаются
+ * и ни один не проваливается. Акцент ровно один на весь продукт и значит
+ * ровно одно, «вот что делать сейчас», поэтому по площади он занимает
+ * около десяти процентов и на экране появляется один раз.
+ *
+ * Прошлая палитра (тёплая бумага #f5f2ea плюс глубокая зелень) выглядела
+ * как бланк: это ровно тот набор, которым закрывают любой «премиальный»
+ * бриф, и продукт в нём терял лицо.
+ */
 :root {
-  color-scheme: light;
-  --c-bg: #f5f7f5;
-  --c-surface: #ffffff;
-  --c-surface-sunken: #f1f4f3;
-  --c-border: #e5eae7;
-  --c-border-strong: #bfcac5;
-  --c-text: #202e29;
-  --c-text-muted: #57665e;
-  --c-accent: #24654e;
-  --c-accent-weak: #edf5ef;
-  --c-accent-text: #20573f;
-  --c-ok: #266344;
-  --c-ok-bg: #edf6ef;
-  --c-warn: #8c5b13;
-  --c-warn-bg: #fff6e7;
-  --c-risk: #a23f3d;
-  --c-risk-bg: #fff0ee;
-  --c-unknown: #65657b;
-  --c-unknown-bg: #f1f0f7;
-  --c-demo: #686080;
-  --c-demo-bg: #f1eef7;
+  color-scheme: dark;
+  --c-bg: #14161C;
+  --c-surface: #1B1E26;
+  --c-surface-sunken: #232732;
+  --c-border: #2F3440;
+  --c-border-strong: #414756;
+  --c-text: #F3F4F8;
+  --c-text-muted: #A9AEBD;
+  --c-text-dim: #7E8496;
+  --c-accent: #C6F24B;
+  --c-accent-weak: #232732;
+  --c-accent-text: #C6F24B;
+  --c-on-accent: #14161C;
+  --c-ok: #C6F24B;
+  --c-ok-bg: rgba(198, 242, 75, .12);
+  --c-warn: #F4C46B;
+  --c-warn-bg: rgba(244, 196, 107, .12);
+  --c-risk: #F2806E;
+  --c-risk-bg: rgba(242, 128, 110, .12);
+  --c-unknown: #A9AEBD;
+  --c-unknown-bg: rgba(126, 132, 150, .12);
+  --c-demo: #F4C46B;
+  --c-demo-bg: rgba(244, 196, 107, .12);
+  /* Штриховка неизвестного: у пустоты своя форма, её видно без чтения. */
+  --hatch: repeating-linear-gradient(135deg, rgba(126,132,150,.18) 0 1.5px, transparent 1.5px 10px);
+  /* Кривые сильнее встроенных: у стандартных нет нужной резкости. */
+  --ease-out: cubic-bezier(.23, 1, .32, 1);
+  --ease-in-out: cubic-bezier(.77, 0, .175, 1);
   --s-1: .25rem;
   --s-2: .5rem;
   --s-3: .75rem;
@@ -31,9 +50,12 @@
   --r-sm: 6px;
   --r-md: 12px;
   --r-lg: 20px;
-  --shadow-card: 0 4px 20px -12px rgba(31, 60, 44, .12);
-  --font-body: 'Segoe UI', ui-sans-serif, system-ui, -apple-system, Arial, sans-serif;
-  --font-mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --shadow-card: 0 4px 20px -12px rgba(0, 0, 0, .5);
+  /* Шрифты приходят из next/font (layout.tsx), поэтому здесь только
+     переменные, а не ссылка на Google Fonts. */
+  --font-display: var(--font-unbounded), var(--font-onest), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-onest), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, 'Cascadia Mono', Consolas, monospace;
   --tap: 44px;
   --measure: 76ch;
 }
@@ -721,4 +743,268 @@ h2 { font-size: 23px; }
   /* В нижнем/компактном меню подпись не помещается: там роль берёт на себя
      само пустое состояние раздела. */
   .nav__locked { display: none; }
+}
+
+/* ================================================================== */
+/* Тёмная система: перевод захардкоженных светлых значений             */
+/* ================================================================== */
+
+/* Раньше эти цвета стояли числами прямо в правилах, поэтому смена
+   токенов их не задела. Ниже каждый переведён по роли, а не по формуле
+   «инвертировать канал». */
+
+::selection { background: var(--c-accent); color: var(--c-on-accent); }
+:focus-visible { outline-color: var(--c-accent); }
+.skip-link { background: var(--c-accent); color: var(--c-on-accent); }
+
+/* Текст на акценте только тёмный: белый по лайму нечитаем. */
+.btn { background: var(--c-accent); color: var(--c-on-accent); }
+.btn:hover { background: #D6F97A; box-shadow: none; }
+.btn--secondary { background: transparent; border-color: var(--c-border-strong); color: var(--c-text); }
+.btn--secondary:hover { background: var(--c-surface-sunken); border-color: var(--c-text-dim); }
+.btn--ghost { background: transparent; color: var(--c-accent); }
+.btn--ghost:hover { background: var(--c-surface-sunken); }
+.questionnaire-steps .badge[aria-current] { background: var(--c-accent); color: var(--c-on-accent); }
+.journey li[data-current='true'] .journey__number { background: var(--c-accent); color: var(--c-on-accent); }
+.wordmark__mark { background: var(--c-accent); color: var(--c-on-accent); }
+
+/* Панель, шапка, навигация. */
+.masthead { background: var(--c-surface); }
+.nav__caption { color: var(--c-text-dim); }
+.nav__link { color: var(--c-text-muted); }
+.nav__link:hover { color: var(--c-text); background: var(--c-surface-sunken); }
+.nav__link[aria-current='page'] { background: var(--c-accent); color: var(--c-on-accent); }
+.nav__link[aria-current='page'] .nav__indicator { background: var(--c-on-accent); }
+.nav__link[data-locked='true'] { color: var(--c-text-dim); }
+.nav__locked { color: var(--c-text-dim); }
+.sidebar-guide { background: var(--c-surface-sunken); border-color: var(--c-border); }
+.sidebar-guide__icon { background: var(--c-accent); color: var(--c-on-accent); }
+.sidebar-guide p { color: var(--c-text-muted); }
+.sidebar-note { color: var(--c-text-dim); }
+.workspace-bar { background: var(--c-bg); }
+.workspace-bar__breadcrumb { color: var(--c-text-dim); }
+.demo-pill { background: var(--c-warn-bg); border-color: rgba(244,196,107,.3); color: var(--c-warn); }
+.demo-pill > span { background: var(--c-warn); }
+.profile-shortcut { background: var(--c-surface-sunken); border-color: var(--c-border); color: var(--c-accent); }
+
+/* Полоса этапов. */
+.journey ol { background: var(--c-surface); }
+.journey__number { color: var(--c-text-dim); }
+.journey strong { color: var(--c-text); }
+.journey small { color: var(--c-text-muted); }
+.journey a > svg { color: var(--c-text-dim); }
+.journey a:hover, .journey a[aria-current] { background: var(--c-surface-sunken); }
+.journey li[data-current='true'] { background: var(--c-surface-sunken); }
+.journey li[data-state='done']:not([data-current]) .journey__number { color: var(--c-accent); }
+
+/* Карточки и поверхности. */
+.card__eyebrow { color: var(--c-text-dim); }
+.university-mark, .program-card__monogram, .next-section__icon,
+.next-stages__number, .start-preview__icon, .deadline-card__icon {
+  background: var(--c-surface-sunken); border-color: var(--c-border); color: var(--c-accent);
+}
+.next-card { background: var(--c-surface-sunken); border-color: var(--c-border); border-left-color: var(--c-accent); }
+.next-card__label { color: var(--c-accent); }
+.help-card { background: var(--c-surface-sunken); }
+.group-heading .muted { background: var(--c-surface-sunken); }
+.program-card__reasons, .answer-changes, .next-stages li,
+.requirement-node--group, .stamp__details, .selection-guide {
+  background: var(--c-surface-sunken); color: var(--c-text-muted);
+}
+.requirement-node__children .requirement-node { background: var(--c-surface); }
+.question-card, .form-actions { background: var(--c-surface); }
+.answer-changes summary { color: var(--c-text); }
+.next-section { background: var(--c-surface-sunken); border-color: var(--c-border); }
+.next-section p:last-child { color: var(--c-text-muted); }
+.sources-line { border-top-color: var(--c-border); }
+.footer, .footer__brand { color: var(--c-text-dim); }
+.footer__brand > span { color: var(--c-accent); }
+
+/* Метки состояния: цвет несёт смысл, поэтому рамка берёт его же. */
+.badge--ok { border-color: rgba(198,242,75,.3); }
+.badge--warn { border-color: rgba(244,196,107,.3); }
+.badge--risk { border-color: rgba(242,128,110,.3); }
+.badge--unknown { border-color: var(--c-border-strong); }
+.notice--info { border-color: var(--c-border); }
+.notice--warn { border-color: rgba(244,196,107,.3); }
+.notice--risk { border-color: rgba(242,128,110,.3); }
+
+/* Задачи и маршрут. */
+.task { border-left-color: var(--c-border-strong); }
+.task--next { border-left-color: var(--c-accent); background: var(--c-surface-sunken); }
+.task--done { border-left-color: var(--c-accent); }
+.counters__num { color: var(--c-accent); }
+.route-map { background: var(--c-surface-sunken); border-color: var(--c-border); }
+.route-actions > .tasks { border-left-color: var(--c-border); }
+.route-actions > .tasks > .task::before { background: var(--c-border-strong); border-color: var(--c-bg); }
+.route-actions > .tasks > .task--next::before { background: var(--c-accent); box-shadow: 0 0 0 3px rgba(198,242,75,.2); }
+.route-actions > .tasks > .task--next { background: var(--c-surface-sunken); }
+.requirement-node[data-status='MET'] { border-left-color: var(--c-accent); }
+.requirement-node[data-status='NOT_MET'] { border-left-color: var(--c-warn); }
+.requirement-node[data-status='UNKNOWN'] { border-left-color: var(--c-border-strong); }
+.requirement-node[data-status='CONFLICT'] { border-left-color: var(--c-risk); }
+.program-card[data-bucket='recommended'] { border-top-color: var(--c-accent); }
+.program-card:hover { border-color: var(--c-border-strong); box-shadow: none; }
+.program-card__university .card__eyebrow { color: var(--c-text-muted); }
+
+/* Поля ввода. */
+input:not([type='hidden']):not([type='checkbox']):not([type='radio']), select, textarea {
+  background: var(--c-surface-sunken); border: 1px solid var(--c-border-strong); color: var(--c-text); border-radius: 10px;
+}
+input::placeholder { color: var(--c-text-dim); }
+input:hover, select:hover { border-color: var(--c-text-dim) !important; }
+input:focus, select:focus { border-color: var(--c-accent) !important; box-shadow: 0 0 0 3px rgba(198,242,75,.18); }
+input:disabled, select:disabled { background: var(--c-bg) !important; color: var(--c-text-dim); }
+input[type='checkbox'], input[type='radio'] { accent-color: var(--c-accent); }
+.picker__item { background: var(--c-surface); }
+.picker__item:hover { border-color: var(--c-text-dim); }
+.picker__item:has(input:checked) { background: var(--c-accent-weak); border-color: var(--c-accent); }
+.answer-modes .picker__item { background: var(--c-surface-sunken); }
+.answer-modes .picker__item:has(input:checked) { background: var(--c-accent-weak); border-color: var(--c-accent); }
+.questionnaire .form-actions { box-shadow: 0 8px 26px rgba(0,0,0,.55); }
+
+/* Скелет загрузки на тёмном. */
+.skeleton { background: linear-gradient(90deg, #1B1E26 25%, #262A34 50%, #1B1E26 75%); background-size: 200% 100%; }
+
+/* Первый экран. */
+.start-panel { background: var(--c-surface); border-color: var(--c-border); }
+.start-panel__copy .lede { color: var(--c-text-muted); }
+.start-panel .btn { box-shadow: none; }
+.start-panel .btn--secondary { background: transparent; }
+.start-panel__note, .start-panel__cost, .needs-answers__scope { color: var(--c-text-muted); }
+.start-panel__demo-note { color: var(--c-text-dim); }
+.start-preview { background: var(--c-surface-sunken); border-color: var(--c-border); box-shadow: none; }
+.start-preview li + li, .start-preview__foot { border-top-color: var(--c-border); }
+.start-preview__number { color: var(--c-text-dim); }
+.start-preview__foot { color: var(--c-accent); }
+.start-scope { background: var(--c-surface-sunken); border-color: var(--c-border); }
+.start-scope__count { color: var(--c-text); }
+.start-scope__list li { background: transparent; border-color: var(--c-border); color: var(--c-text-muted); }
+.needs-answers { background: var(--c-surface); border-color: var(--c-border); }
+.needs-answers__gives { background: var(--c-surface-sunken); border-color: var(--c-border); }
+
+/* Герой: без светлой заливки, иначе секция выпадает из темы страницы. */
+.hero { background: var(--c-surface); border-color: var(--c-border); }
+.hero h2 { color: var(--c-text); }
+.hero p { color: var(--c-text-muted); }
+.hero__label, .hero .btn--ghost { color: var(--c-accent); }
+
+/* ================================================================== */
+/* Типографика                                                         */
+/* ================================================================== */
+
+/* Дисплейный гротеск в заголовках. Антиква по умолчанию это самый
+   вычисляемый признак машинного дизайна, и продукту она ничего не даёт. */
+h1, h2, .group-heading, .counters__num, .start-scope__count,
+.disclosure summary strong {
+  font-family: var(--font-display);
+}
+/* Дисплейный шрифт шире обычного, поэтому в узких колонках короткий
+   заголовок в нём рвётся на две строки. Там, где места мало, заголовок
+   возвращается к тексту: это подпись, а не высказывание. */
+.sidebar-guide h2, .help-card h2, .next-section h2, .section-heading h2,
+.notice h2, .notice h3, .deadline-card h2 {
+  font-family: var(--font-body);
+  letter-spacing: -.01em;
+}
+h1 { font-weight: 800; letter-spacing: -.04em; line-height: 1.02; }
+h2 { font-weight: 700; letter-spacing: -.028em; }
+h3, .task__title, .question-card legend { font-weight: 600; letter-spacing: -.015em; }
+
+/* Числа моноширинные: даты, баллы и суммы встают в столбец и
+   сравниваются глазом за один проход, а не читаются по одному. */
+.counters__num, .facts__value, .journey__number {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+}
+.counters__num { font-weight: 500; letter-spacing: -.03em; }
+
+/* ================================================================== */
+/* Неизвестность: собственная форма, а не ещё один бейдж               */
+/* ================================================================== */
+
+.badge--unknown { border-style: dashed; border-right-color: transparent; background-image: var(--hatch); }
+.compare__value--unknown {
+  border: 1.5px dashed var(--c-border-strong); border-right-color: transparent;
+  border-radius: 8px; padding: 6px 10px; background-image: var(--hatch);
+}
+.task--blocked { background-image: var(--hatch); }
+.requirement-node[data-status='UNKNOWN'] { border-left-style: dashed; background-image: var(--hatch); }
+
+/* ================================================================== */
+/* Движение                                                            */
+/* ================================================================== */
+
+/* Каждая анимация здесь отвечает на вопрос «что она сообщает»:
+   отклик на нажатие, появление нового содержимого, смена состояния.
+   «Выглядит круто» причиной не считается: то, что человек видит
+   десятки раз за сессию, движением только замедляют.
+   Длительности держатся ниже 300 мс. Кривая ease-out, потому что
+   ease-in откладывает начало ровно в тот момент, когда человек
+   смотрит внимательнее всего, и интерфейс кажется вязким. */
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Отклик на нажатие. Ничего не сообщает, кроме «интерфейс услышал»,
+     но без него кнопка кажется неживой. */
+  .btn, .picker__item, .questionnaire-steps .badge, .nav__link,
+  .program-card__link, .next-stages a, .help-card a {
+    transition: background-color 160ms var(--ease-out), border-color 160ms var(--ease-out),
+                color 160ms var(--ease-out), transform 160ms var(--ease-out);
+  }
+  .btn:active:not(:disabled) { transform: scale(.97); }
+  .picker__item:active { transform: scale(.99); }
+
+  /* Ховер только там, где есть настоящий курсор: на тач-экране он
+     срабатывает от касания и залипает. */
+  @media (hover: hover) and (pointer: fine) {
+    .btn:hover:not(:disabled) { transform: translateY(-1px); }
+    .card:not(.needs-answers):not(.next-card) { transition: border-color 180ms var(--ease-out), transform 180ms var(--ease-out); }
+    .program-card:hover { transform: translateY(-2px); }
+  }
+
+  /* Появление содержимого страницы. Каскад 30-80 мс: одновременное
+     появление всего читается как рывок, длинные задержки как тормоз. */
+  .page-transition { animation: page-enter 300ms var(--ease-out) backwards; }
+  .page-transition > .stack > :is(section, form, .dashboard, .compare),
+  .page-transition .grid > .card { animation: block-enter 340ms var(--ease-out) backwards; }
+
+  /* Раскрытие подробностей: поворот стрелки сообщает смену состояния. */
+  .task-details summary svg, .comparison-picker summary > svg,
+  .disclosure summary > svg, .stamp summary svg {
+    transition: transform 200ms var(--ease-out);
+  }
+
+  /* Числа прогресса меняются редко, поэтому их появление можно
+     показать: это единственное место, ради которого человек
+     возвращается на экран. */
+  .counters__item { animation: counter-enter 280ms var(--ease-out) backwards; }
+  .counters__item:nth-child(2) { animation-delay: 40ms; }
+  .counters__item:nth-child(3) { animation-delay: 80ms; }
+  .counters__item:nth-child(4) { animation-delay: 120ms; }
+
+  /* Подтверждения и ошибки приходят после действия человека: без
+     перехода они возникают из ниоткуда и выглядят сбоем. Масштаб
+     начинается с .97, а не с нуля: в реальном мире ничто не
+     появляется из ничего. */
+  [role='status'], [role='alert'] {
+    animation: state-enter 220ms var(--ease-out) backwards;
+  }
+}
+
+@keyframes counter-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes state-enter {
+  from { opacity: 0; transform: scale(.97); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Сокращённое движение это меньше движения, а не его отсутствие:
+   переходы цвета и прозрачности помогают понимать интерфейс и
+   остаются. Убирается только перемещение. */
+@media (prefers-reduced-motion: reduce) {
+  .page-transition, .page-transition > .stack > *, .counters__item,
+  [role='status'], [role='alert'] { animation: none !important; }
+  .btn:active:not(:disabled), .btn:hover, .program-card:hover { transform: none !important; }
 }

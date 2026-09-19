@@ -8,6 +8,7 @@
  */
 
 import type { Metadata, Viewport } from 'next';
+import { Unbounded, Onest, JetBrains_Mono } from 'next/font/google';
 
 import './globals.css';
 import Link from 'next/link';
@@ -19,6 +20,34 @@ import { headProfile } from '@/server/ports';
 import { defaultProfileFor } from '@/server/questionnaire-service';
 import { isProfileStarted } from '@core/demo/profile';
 import { Icon } from './_components/icon';
+
+/*
+ * Шрифты подключены через next/font: файлы отдаются со своего домена,
+ * подставляются без скачка вёрстки и не тянут запрос к Google в проде.
+ *
+ * Все три с родной кириллицей, поэтому подключён и cyrillic-набор:
+ * без него русский текст молча падал бы на системный шрифт.
+ */
+const unbounded = Unbounded({
+  subsets: ['latin', 'cyrillic'],
+  weight: ['600', '700', '800'],
+  variable: '--font-unbounded',
+  display: 'swap',
+});
+
+const onest = Onest({
+  subsets: ['latin', 'cyrillic'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-onest',
+  display: 'swap',
+});
+
+const jetbrains = JetBrains_Mono({
+  subsets: ['latin', 'cyrillic'],
+  weight: ['400', '500'],
+  variable: '--font-jetbrains',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'ТРАЕКТОРИЯ — маршрут поступления',
@@ -58,7 +87,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   };
 
   return (
-    <html lang="ru">
+    <html lang="ru" className={`${unbounded.variable} ${onest.variable} ${jetbrains.variable}`}>
       <body>
         <a className="skip-link" href="#main">
           Перейти к содержимому

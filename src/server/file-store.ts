@@ -13,7 +13,7 @@
  * в number нельзя (DATA-09).
  */
 
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import {
@@ -72,14 +72,55 @@ async function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const current = previous.then(fn, fn);
   // В карте держим «хвост» без значения, чтобы отказ одной команды
   // не отменял следующие.
-  locks.set(
-    key,
-    current.then(
-      () => undefined,
-      () => undefined,
-    ),
+  const tail = current.then(
+    () => undefined,
+    () => undefined,
   );
+  locks.set(key, tail);
+
+  // Очередь пуста — запись больше не нужна. Без этого карта росла бы на
+  // одну строку с каждым НОВЫМ владельцем и не уменьшалась никогда:
+  // за время жизни процесса это утечка, пропорциональная числу посетителей.
+  void tail.then(() => {
+    if (locks.get(key) === tail) locks.delete(key);
+  });
+
   return current;
+}
+
+/** Сколько живёт чужой временный файл, прежде чем его считать брошенным. */
+const TMP_MAX_AGE_MS = 60 * 60 * 1000;
+
+let sweptDirs: Set<string> | undefined;
+
+/**
+ * Уборка временных файлов, брошенных прошлым запуском.
+ *
+ * `writeAtomically` пишет во временный файл и переименовывает его. Если
+ * процесс умер между этими шагами, `.tmp` остаётся на диске навсегда:
+ * штатный цикл чтения и записи его не трогает. Подметаем один раз за запуск
+ * и только заведомо старые файлы, чтобы не тронуть запись соседнего процесса.
+ */
+async function sweepStaleTmp(dir: string): Promise<void> {
+  sweptDirs ??= new Set();
+  if (sweptDirs.has(dir)) return;
+  sweptDirs.add(dir);
+
+  try {
+    const now = Date.now();
+    for (const name of await readdir(dir)) {
+      if (!name.endsWith('.tmp')) continue;
+      const full = path.join(dir, name);
+      try {
+        const info = await stat(full);
+        if (now - info.mtimeMs > TMP_MAX_AGE_MS) await unlink(full);
+      } catch {
+        // Файл уже убрали или он занят — это не наша забота.
+      }
+    }
+  } catch {
+    // Каталога ещё нет либо он недоступен: уборка не обязана мешать работе.
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -93,16 +134,52 @@ function fileFor(ownerId: string): string {
   return path.join(DATA_DIR, `${safe}.json`);
 }
 
+/**
+ * Отвести испорченный файл в сторону, а не удалять.
+ *
+ * Данные пользователя нельзя молча выбрасывать даже когда они нечитаемы:
+ * из отложенной копии их можно разобрать руками. Переименование — лучшая
+ * попытка, и его неудача не должна мешать странице открыться.
+ */
+async function quarantine(target: string): Promise<string | null> {
+  const parked = `${target}.corrupt-${Date.now()}`;
+  try {
+    await rename(target, parked);
+    return parked;
+  } catch {
+    return null;
+  }
+}
+
 export class FileStore implements Store {
   async read(ownerId: string): Promise<UserState> {
+    const target = fileFor(ownerId);
+
+    let raw: string;
     try {
-      const raw = await readFile(fileFor(ownerId), 'utf8');
+      raw = await readFile(target, 'utf8');
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return emptyUserState(ownerId);
+      throw err;
+    }
+
+    try {
       // Файл мог быть записан прежней версией и не знать о новых полях.
       // Сохранённые данные пользователя обязаны переживать обновление кода.
       return normalizeUserState(deserializeState(raw), ownerId);
     } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return emptyUserState(ownerId);
-      throw err;
+      // Содержимое нечитаемо: оборванная запись, ручная правка, испорченный
+      // тег bigint. Раньше SyntaxError всплывал до страницы и посетитель
+      // получал 500 без единого способа выбраться. Отводим файл в сторону
+      // и продолжаем с пустым состоянием: продукт остаётся рабочим, а данные
+      // сохраняются для разбора.
+      const parked = await quarantine(target);
+      console.error(
+        `[file-store] состояние владельца ${ownerId} нечитаемо и отложено` +
+          `${parked ? ` в ${path.basename(parked)}` : ' (переименовать не удалось)'}: ` +
+          `${(err as Error).message}`,
+      );
+      return emptyUserState(ownerId);
     }
   }
 
@@ -119,10 +196,20 @@ export class FileStore implements Store {
   /** Запись через временный файл и rename: недописанный JSON не станет состоянием. */
   private async writeAtomically(ownerId: string, state: UserState): Promise<void> {
     const target = fileFor(ownerId);
-    await mkdir(path.dirname(target), { recursive: true });
+    const dir = path.dirname(target);
+    await mkdir(dir, { recursive: true });
+    await sweepStaleTmp(dir);
+
     const tmp = `${target}.${process.pid}.${Date.now()}.tmp`;
-    await writeFile(tmp, serializeState(state), 'utf8');
-    await rename(tmp, target);
+    try {
+      await writeFile(tmp, serializeState(state), 'utf8');
+      await rename(tmp, target);
+    } catch (err) {
+      // Диск полон, нет прав, файл занят — временный файл не должен пережить
+      // неудачу и копиться на диске.
+      await unlink(tmp).catch(() => undefined);
+      throw err;
+    }
   }
 }
 

@@ -175,6 +175,15 @@ export const DAY_MS = 86_400_000;
 export function plainDateToUtcMidnight(d: PlainDate): number {
   const ms = Date.parse(`${d}T00:00:00Z`);
   if (Number.isNaN(ms)) throw new RangeError(`Некорректная дата: ${d}`);
+
+  // `Date.parse` не проверяет существование числа в месяце, а молча
+  // переносит его вперёд: «2027-02-31» превращается в 3 марта. Дальше по
+  // расчёту это уже не ошибка, а другая настоящая дата — срок подачи,
+  // сдвинутый на трое суток без единого предупреждения. Сверяем обратным
+  // преобразованием: настоящая дата обязана совпасть сама с собой.
+  if (new Date(ms).toISOString().slice(0, 10) !== d) {
+    throw new RangeError(`Несуществующая дата: ${d}`);
+  }
   return ms;
 }
 
@@ -219,8 +228,25 @@ export function isWorkingDay(d: PlainDate, cal: WorkCalendar): boolean {
   return !cal.holidays.includes(d);
 }
 
+/**
+ * Проверка счётчика дней.
+ *
+ * Отрицательное N прежде проходило молча: цикл `while (left > 0)` не
+ * выполнялся ни разу, и функция возвращала исходную дату. Для планировщика
+ * это худший из исходов — расчёт «сдвинули на −5 дней» выглядел как
+ * «сдвигать не понадобилось», и ошибка в вызывающем коде растворялась
+ * в правдоподобном расписании. Направление задаётся выбором функции,
+ * а не знаком аргумента.
+ */
+function assertDayCount(fn: string, n: number): void {
+  if (!Number.isInteger(n) || n < 0) {
+    throw new RangeError(`${fn}: число дней должно быть целым неотрицательным, получено ${n}`);
+  }
+}
+
 /** Сдвиг на N рабочих дней вперёд (N ≥ 0). */
 export function addWorkingDays(d: PlainDate, n: number, cal: WorkCalendar): PlainDate {
+  assertDayCount('addWorkingDays', n);
   let cur = d;
   let left = n;
   let guard = 0;
@@ -234,6 +260,7 @@ export function addWorkingDays(d: PlainDate, n: number, cal: WorkCalendar): Plai
 
 /** Сдвиг на N рабочих дней назад — основа обратного планирования (BR-06). */
 export function subWorkingDays(d: PlainDate, n: number, cal: WorkCalendar): PlainDate {
+  assertDayCount('subWorkingDays', n);
   let cur = d;
   let left = n;
   let guard = 0;

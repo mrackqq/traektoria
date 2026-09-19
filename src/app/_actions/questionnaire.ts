@@ -34,6 +34,21 @@ function revalidateAll(): void {
   }
 }
 
+/**
+ * Полный сброс кеша вместе с макетом.
+ *
+ * Смена режима меняет не одну страницу, а ВСЁ пространство данных сразу,
+ * включая шапку с признаком примера. Постраничного сброса здесь мало:
+ * `switchModeAction` перенаправляет на «/», и при переключении со стартового
+ * экрана адрес не меняется. Клиентский роутер считал такой переход ничем и
+ * оставлял на экране прежнюю разметку — cookie уже стояла, демо уже
+ * работало, а человек видел ту же страницу и ту же кнопку «Посмотреть демо».
+ */
+function revalidateEverything(): void {
+  revalidatePath('/', 'layout');
+  revalidateAll();
+}
+
 export async function saveStepAction(
   _prev: SaveStepResult | null,
   formData: FormData,
@@ -152,6 +167,6 @@ export async function switchModeAction(formData: FormData): Promise<void> {
     secure: process.env.NODE_ENV === 'production',
   });
 
-  revalidateAll();
+  revalidateEverything();
   redirect(mode === 'demo' ? '/' : '/profile/edit');
 }

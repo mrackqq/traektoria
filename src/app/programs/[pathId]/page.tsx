@@ -8,6 +8,7 @@
  */
 
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
 import type { CatalogCostItem, CatalogSnapshot } from '@core/catalog/types';
@@ -38,6 +39,34 @@ const PERIOD_RU: Record<CostPeriod, string> = {
   per_month: 'в месяц',
   whole_programme: 'за всю программу',
 };
+
+/**
+ * Заголовок вкладки и ранняя проверка идентификатора.
+ *
+ * Проверка живёт здесь, а не только в теле страницы, потому что метаданные
+ * считаются до первого отправленного байта: отказ отсюда успевает дойти до
+ * заголовков и ответ получает честный 404.
+ *
+ * Это работает лишь до тех пор, пока над этим сегментом нет `loading.tsx`.
+ * Граница загрузки начинает отдавать оболочку сразу и фиксирует статус 200,
+ * после чего сменить его уже нельзя — несуществующая программа отвечала бы
+ * «200 OK» с текстом «Страница не найдена». Поэтому в `app/programs/`
+ * границы загрузки нет намеренно; см. `_components/route-loading.tsx`.
+ *
+ * Снимок берётся из общей памяти запроса, так что второй вызов расчёта
+ * не стоит.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ pathId: string }>;
+}): Promise<Metadata> {
+  const { pathId } = await params;
+  const goal = (await getPageSession()).snapshot.goals.find((g) => g.path.id === pathId);
+  if (!goal) notFound();
+
+  return { title: `${goal.program.title} — ТРАЕКТОРИЯ` };
+}
 
 export default async function ProgramPage({ params }: { params: Promise<{ pathId: string }> }) {
   const { pathId } = await params;

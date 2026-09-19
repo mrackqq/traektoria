@@ -157,8 +157,17 @@ export function deriveEligibility(root: EvaluatedNode): {
 }
 
 export function deriveDataQuality(root: EvaluatedNode, isDemo: boolean): DataQuality {
-  if (isDemo) return 'demo';
   const leaves = flattenLeaves(root);
+
+  // Проблемы с источниками проверяются РАНЬШЕ пометки «демо».
+  //
+  // Пока `isDemo` замыкал функцию накоротко, синтетический путь с настоящим
+  // расхождением источников показывался как «демонстрационные данные», и
+  // расхождение исчезало из интерфейса. В посеянном каталоге такие случаи
+  // заложены намеренно — устаревший источник и два источника, спорящих об
+  // одном сроке, — именно чтобы продукт показывал их как неопределённость.
+  // Пометка о синтетичности данных не должна прятать их качество: это разные
+  // утверждения, и менее тревожное не заменяет более тревожное.
   if (leaves.some((l) => l.reasonCodes.includes('SOURCE_CONFLICT'))) return 'conflict';
   if (
     leaves.some(
@@ -169,6 +178,8 @@ export function deriveDataQuality(root: EvaluatedNode, isDemo: boolean): DataQua
   ) {
     return 'stale';
   }
+
+  if (isDemo) return 'demo';
   const metLeaves = leaves.filter(
     (l) => l.outcome.kind === 'evaluated' && l.outcome.status === 'MET',
   );

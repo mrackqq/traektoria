@@ -25,6 +25,13 @@ export function fnv1a(input: string): string {
  * сериализуется с суффиксом, чтобы не смешаться с number.
  */
 export function canonicalJson(value: unknown): string {
+  // Стек текущей ветки обхода: циклическая ссылка иначе уходит в бесконечную
+  // рекурсию и роняет процесс через RangeError переполнения стека — далеко от
+  // места настоящей ошибки и без единого указания, что именно зациклено.
+  return canonicalize(value, new Set<object>());
+}
+
+function canonicalize(value: unknown, seen: Set<object>): string {
   if (value === null) return 'null';
   if (typeof value === 'bigint') return `${value.toString()}n`;
   if (typeof value === 'number') {
@@ -36,13 +43,29 @@ export function canonicalJson(value: unknown): string {
   }
   if (typeof value === 'boolean') return value ? 'true' : 'false';
   if (typeof value === 'string') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+
   if (typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .filter(([, v]) => v !== undefined)
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v)}`).join(',')}}`;
+    if (seen.has(value)) {
+      throw new TypeError('canonicalJson: значение содержит циклическую ссылку');
+    }
+    seen.add(value);
+    try {
+      if (Array.isArray(value)) {
+        return `[${value.map((item) => canonicalize(item, seen)).join(',')}]`;
+      }
+      const entries = Object.entries(value as Record<string, unknown>)
+        .filter(([, v]) => v !== undefined)
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+      return `{${entries
+        .map(([k, v]) => `${JSON.stringify(k)}:${canonicalize(v, seen)}`)
+        .join(',')}}`;
+    } finally {
+      // Соседние ветки могут законно ссылаться на один и тот же объект:
+      // это общая ссылка, а не цикл.
+      seen.delete(value);
+    }
   }
+
   // function / symbol / undefined на верхнем уровне — программная ошибка.
   throw new Error(`canonicalJson: неподдерживаемый тип ${typeof value}`);
 }

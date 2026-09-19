@@ -78,7 +78,9 @@ svg { flex-shrink: 0; vertical-align: middle; }
 .workspace-bar__breadcrumb, .workspace-bar__tools { display: flex; align-items: center; gap: 15px; }
 .workspace-bar__breadcrumb { font-size: 12px; color: #8a948f; }
 .workspace-bar__breadcrumb span:last-child { color: var(--c-text); font-weight: 500; }
-.demo-pill { display: flex; align-items: center; gap: 7px; color: #777168; font-size: 11px; background: #f5f3eb; border: 1px solid #ebe8db; border-radius: 7px; padding: 5px 10px; white-space: nowrap; }
+/* Кнопка выхода из примера: не подпись, а аварийный выход — норматив
+   нажатия обязателен, иначе на телефоне в него не попасть. */
+.demo-pill { display: flex; align-items: center; gap: 7px; min-height: var(--tap); color: #777168; font-size: 11px; background: #f5f3eb; border: 1px solid #ebe8db; border-radius: 7px; padding: 5px 10px; white-space: nowrap; }
 .demo-pill > span { width: 5px; height: 5px; background: #a29867; border-radius: 50%; }
 .profile-shortcut { display: grid; place-items: center; width: 44px; height: 44px; background: #ebf0ec; border: 1px solid #e0e7e1; border-radius: 50%; color: var(--c-accent); }
 .main { flex: 1; width: 100%; max-width: 1370px; margin: 0 auto; padding: 28px 40px 40px; min-width: 0; }
@@ -349,7 +351,7 @@ input[aria-invalid='true'], select[aria-invalid='true'] { border-color: var(--c-
   .workspace-bar__breadcrumb { gap: 9px; font-size: 10px; }
   .workspace-bar__tools { gap: 10px; }
   .profile-shortcut { width: 44px; height: 44px; }
-  .demo-pill { font-size: 9px; padding: 4px 7px; }
+  .demo-pill { font-size: 12px; padding: 4px 9px; }
   .main { padding: 20px 20px 30px; }
   .journey { margin-bottom: 24px; }
   .journey ol { grid-template-columns: repeat(2,minmax(0,1fr)); }

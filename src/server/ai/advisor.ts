@@ -174,6 +174,28 @@ function remember(
   return value;
 }
 
+/**
+ * Сколько не повторять запрос после неудачи.
+ *
+ * Короткая пауза, а не полноценный кеш: временная сетевая ошибка не должна
+ * выключать модель на полчаса, но и повторять её на КАЖДОЙ загрузке страницы
+ * нельзя. Пока неудачи не запоминались вовсе, недоступность OpenRouter
+ * превращалась в шторм: каждый переход между разделами, каждое обновление
+ * страницы и каждый параллельный посетитель заново шли в сеть и ждали
+ * таймаут — платный провайдер в этот момент как раз и просит сбавить темп.
+ */
+const FAILURE_TTL_MS = 60 * 1000;
+
+function rememberFailure(key: string, value: AdviceResult, atMs: number): AdviceResult {
+  const store = cache();
+  if (store.size >= CACHE_MAX) {
+    const oldest = store.keys().next().value;
+    if (oldest !== undefined) store.delete(oldest);
+  }
+  store.set(key, { value, at: atMs, expiresAt: atMs + FAILURE_TTL_MS });
+  return value;
+}
+
 export function clearAdviceCache(): void {
   cache().clear();
 }
@@ -308,24 +330,31 @@ async function requestAdvice(
   });
 
   if (!response.ok) {
-    // Неудача не кешируется надолго: временная сетевая ошибка не должна
-    // выключать AI на полчаса.
-    return rulesResult(
-      response.code,
-      `${response.message}. Показаны объяснения по правилам сервиса.`,
+    return rememberFailure(
+      key,
+      rulesResult(response.code, `${response.message}. Показаны объяснения по правилам сервиса.`),
+      nowMs,
     );
   }
 
   const parsed = parseJsonContent(response.content);
   if (!parsed.ok) {
-    return rulesResult(parsed.code, `${parsed.message}. Показаны объяснения по правилам сервиса.`);
+    return rememberFailure(
+      key,
+      rulesResult(parsed.code, `${parsed.message}. Показаны объяснения по правилам сервиса.`),
+      nowMs,
+    );
   }
 
   const validated = adviceSchema.safeParse(parsed.value);
   if (!validated.success) {
-    return rulesResult(
-      'INVALID_SHAPE',
-      'Ответ модели не соответствует ожидаемой структуре. Показаны объяснения по правилам сервиса.',
+    return rememberFailure(
+      key,
+      rulesResult(
+        'INVALID_SHAPE',
+        'Ответ модели не соответствует ожидаемой структуре. Показаны объяснения по правилам сервиса.',
+      ),
+      nowMs,
     );
   }
 

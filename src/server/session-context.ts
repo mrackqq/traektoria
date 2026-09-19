@@ -14,9 +14,15 @@
  * не смешивались и переживали обновление страницы.
  */
 
+import { cache } from 'react';
+
 import { cookies } from 'next/headers';
 
 import { demoOwnerId, visitorOwnerId } from '@core/demo/profile';
+
+import { newSessionId, sanitizeSessionId } from './session-id';
+
+export { newSessionId, sanitizeSessionId };
 
 export const SESSION_COOKIE = 'trk_sid';
 export const MODE_COOKIE = 'trk_mode';
@@ -30,15 +36,22 @@ export interface VisitorContext {
   readonly ownerId: string;
 }
 
-/** Идентификатор из cookie не попадает никуда как есть. */
-export function sanitizeSessionId(raw: string | undefined): string {
-  const cleaned = (raw ?? '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
-  return cleaned.length >= 8 ? cleaned : 'guest';
-}
-
-export async function visitorContext(): Promise<VisitorContext> {
+/**
+ * Кто сейчас на сайте — один ответ на весь запрос.
+ *
+ * `cache` нужен именно из-за запасной ветки: когда cookie нет, мы выдаём
+ * одноразовый идентификатор, и без памяти на запрос макет и страница
+ * оказались бы разными владельцами внутри одного рендера.
+ *
+ * Такой посетитель изолирован и ничего ни у кого не видит, но и его
+ * собственные данные не переживут запрос: вернуться к ним не по чему —
+ * cookie, которая связывала бы его с состоянием, до сервера не дошла.
+ * В штатной работе сюда не попадают: cookie выдаёт middleware на первом
+ * же запросе и подставляет её в тот же рендер.
+ */
+export const visitorContext = cache(async (): Promise<VisitorContext> => {
   const jar = await cookies();
-  const sessionId = sanitizeSessionId(jar.get(SESSION_COOKIE)?.value);
+  const sessionId = sanitizeSessionId(jar.get(SESSION_COOKIE)?.value) ?? newSessionId();
   const mode: SessionMode = jar.get(MODE_COOKIE)?.value === 'demo' ? 'demo' : 'own';
 
   return {
@@ -46,9 +59,5 @@ export async function visitorContext(): Promise<VisitorContext> {
     mode,
     ownerId: mode === 'demo' ? demoOwnerId(sessionId) : visitorOwnerId(sessionId),
   };
-}
+});
 
-/** Новый идентификатор посетителя. Используется middleware при первом заходе. */
-export function newSessionId(): string {
-  return globalThis.crypto.randomUUID().replace(/-/g, '');
-}

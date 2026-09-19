@@ -10,6 +10,8 @@
  * страница всё равно получает полный расчёт по правилам.
  */
 
+import { cache } from 'react';
+
 import type { SessionSnapshot } from '@core/demo/session';
 
 import { getAdvice, type AdviceResult } from '@/server/ai/advisor';
@@ -20,11 +22,19 @@ export interface PageSession extends SessionView {
   readonly context: VisitorContext;
 }
 
-export async function getPageSession(): Promise<PageSession> {
+/**
+ * Снимок расчёта — один на запрос.
+ *
+ * За снимком стоит вся тяжёлая работа: сборка каталога, подбор программ,
+ * планирование маршрута. Без памяти на запрос каждый обратившийся
+ * (страница, её метаданные, вложенный компонент) считал бы всё заново —
+ * одни и те же данные, тот же результат, кратные затраты.
+ */
+export const getPageSession = cache(async (): Promise<PageSession> => {
   const context = await visitorContext();
   const view = await loadSessionView(context.ownerId);
   return { ...view, context };
-}
+});
 
 /** Короткий доступ к снимку для страниц, которым не нужен остальной контекст. */
 export async function getSession(): Promise<SessionSnapshot> {

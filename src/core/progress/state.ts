@@ -49,6 +49,19 @@ export const TASK_STATUS_LABEL_RU: Record<TaskStatus, string> = {
 };
 
 /**
+ * Подпись статуса для текста пользователю.
+ *
+ * Статус приходит из формы и приводится к типу без проверки, поэтому в
+ * сообщение об отказе может попасть значение вне перечисления. Прямое
+ * обращение к словарю давало тогда `undefined`, и пользователь читал
+ * «Переход «К выполнению» → «undefined» не предусмотрен». Неизвестное
+ * значение честнее показать как есть — по нему хотя бы видно, что пришло.
+ */
+function statusLabel(status: TaskStatus): string {
+  return TASK_STATUS_LABEL_RU[status] ?? `неизвестный статус «${String(status)}»`;
+}
+
+/**
  * Допустимые переходы.
  *
  * `done → in_progress` разрешён намеренно: TASK-03 требует, чтобы снятие
@@ -605,7 +618,7 @@ export function applyStatusChange(input: {
       kind: 'rejected',
       code: 'TRANSITION_NOT_ALLOWED',
       message:
-        `Переход «${TASK_STATUS_LABEL_RU[task.status]}» → «${TASK_STATUS_LABEL_RU[command.to]}» ` +
+        `Переход «${statusLabel(task.status)}» → «${statusLabel(command.to)}» ` +
         'не предусмотрен жизненным циклом',
     };
   }

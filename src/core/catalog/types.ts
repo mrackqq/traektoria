@@ -281,7 +281,11 @@ export function computeFreshness(
   let policyDays = FRESHNESS_POLICY_DAYS[source.dataKind];
   if (nearestDeadline) {
     const daysToDeadline = Math.round((Date.parse(`${nearestDeadline}T00:00:00Z`) - nowMs) / 86_400_000);
-    if (daysToDeadline >= 0 && daysToDeadline <= NEAR_DEADLINE_WINDOW_DAYS) {
+    // Окно считается по модулю: только что прошедший срок требует свежих
+    // данных не меньше, чем наступающий. Прежнее условие `daysToDeadline >= 0`
+    // снимало ужесточение ровно в тот момент, когда цена ошибки максимальна —
+    // сразу после отсечки, когда абитуриент ещё сверяет, успел он или нет.
+    if (Math.abs(daysToDeadline) <= NEAR_DEADLINE_WINDOW_DAYS) {
       policyDays = NEAR_DEADLINE_POLICY_DAYS;
     }
   }

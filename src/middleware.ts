@@ -11,14 +11,21 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { newSessionId, sanitizeSessionId } from '@/server/session-id';
+
 const SESSION_COOKIE = 'trk_sid';
 const YEAR_SECONDS = 60 * 60 * 24 * 365;
 
 export function middleware(request: NextRequest) {
-  const existing = request.cookies.get(SESSION_COOKIE)?.value;
-  if (existing && existing.length >= 8) return NextResponse.next();
+  // Годность проверяется тем же правилом, по которому идентификатор потом
+  // читается. Раньше здесь стояла только проверка длины: значение вроде
+  // «!!!!!!!!!» её проходило, новая cookie не выдавалась, а на чтении
+  // очищалось до пустой строки — и посетитель оставался без сессии.
+  if (sanitizeSessionId(request.cookies.get(SESSION_COOKIE)?.value)) {
+    return NextResponse.next();
+  }
 
-  const sessionId = crypto.randomUUID().replace(/-/g, '');
+  const sessionId = newSessionId();
   // Запрос правим до создания ответа: страница этого же перехода уже увидит
   // свою сессию и не создаст второй пустой профиль.
   request.cookies.set(SESSION_COOKIE, sessionId);

@@ -17,7 +17,7 @@
  * а не глобальным счётчиком ревизий.
  */
 
-import { payloadHash } from './hash';
+import { canonicalJson, payloadHash } from './hash';
 import type { PlainDate } from './time';
 
 /** Версия детерминированного ядра. Меняется при изменении семантики расчёта. */
@@ -111,9 +111,19 @@ export function computeCalculationKey(input: CalculationInputs): CalculationKey 
   };
 
   // Границы в прошлом не годятся: они уже наступили и ограничивают не срок
-  // годности, а сам результат (его считает планировщик).
-  const future = input.boundaries.filter((b) => b.atUtc > input.calculatedAt);
-  const nearest = [...future, maxAge].reduce((a, b) => (a.atUtc <= b.atUtc ? a : b));
+  // годности, а сам результат (его считает планировщик). Граница РОВНО в
+  // момент расчёта — уже наступившая, поэтому попадает сюда: прежнее строгое
+  // `>` её отбрасывало, и расчёт получал полные 15 минут мнимой годности
+  // вместо немедленного истечения.
+  const future = input.boundaries.filter((b) => b.atUtc >= input.calculatedAt);
+
+  // Тай-брейк при совпадающем моменте — по канонизованной причине, а не по
+  // порядку массива. Иначе два одинаково близких срока давали разный ответ
+  // на одних и тех же данных, что противоречит смыслу этого модуля.
+  const nearest = [...future, maxAge].reduce((a, b) => {
+    if (a.atUtc !== b.atUtc) return a.atUtc < b.atUtc ? a : b;
+    return canonicalJson(a.reason) <= canonicalJson(b.reason) ? a : b;
+  });
 
   return {
     engineVersion: ENGINE_VERSION,

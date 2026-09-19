@@ -34,8 +34,19 @@ import {
   templatesForCountingKey,
   type ExamProgress,
   type Range,
+  type TaskKind,
   type TaskTemplate,
 } from './tasks-library';
+
+/**
+ * Виды действий, у которых обычно есть плата.
+ *
+ * Регистрация на экзамен — взнос, получение документа — пошлина или
+ * нотариальное заверение. У подачи заявления, ожидания результата,
+ * подготовки и рекомендованных активностей своей суммы нет: их отсутствие
+ * не признак неполноты данных.
+ */
+const PAYABLE_TASK_KINDS: readonly TaskKind[] = ['register', 'obtain_document'];
 
 /* ------------------------------------------------------------------ */
 /* Типы                                                                */
@@ -506,6 +517,18 @@ function scheduleRoute(args: ScheduleArgs): BridgeRoute {
   const costs = tasks.map((t) => t.template.cost).filter((c): c is Money => !!c);
   const totalCost = costs.length > 0 ? sumMoney(costs, costs[0]!.currency) : null;
 
+  // DATA-09: неполной стоимость считается тогда, когда сумма не опубликована
+  // у действия, которое её ОБЫЧНО имеет.
+  //
+  // Прежнее правило сравнивало число известных сумм с числом всех
+  // не-подготовительных действий и потому взводило флаг всегда: у подачи
+  // заявления, ожидания результата и рекомендованных активностей своей
+  // стоимости нет по замыслу, а не по незнанию. Флаг, поднятый на каждом
+  // маршруте, не сообщает ничего.
+  const costIncomplete = tasks.some(
+    (t) => PAYABLE_TASK_KINDS.includes(t.template.kind) && !t.template.cost,
+  );
+
   return {
     id: `route-${args.idx}`,
     label: routeLabel(args.idx),
@@ -514,8 +537,7 @@ function scheduleRoute(args: ScheduleArgs): BridgeRoute {
     tasks: conservative.tasks,
     totalEffortHours: { min: effortMin, max: effortMax },
     totalCost,
-    // DATA-09: часть расходов не имеет опубликованной суммы — это не «полная стоимость».
-    costIncomplete: costs.length < tasks.filter((t) => t.template.kind !== 'prepare').length,
+    costIncomplete,
     feasibility: {
       status,
       limitations: conservative.ok ? optimistic.limitations : conservative.limitations,

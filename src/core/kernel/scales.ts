@@ -149,9 +149,19 @@ export function checkScaleValue(
     };
   }
 
-  const factor = Math.round(1 / scale.step);
-  const scaled = Math.round(value * factor);
-  if (Math.abs(scaled / factor - value) > 1e-9) {
+  // Кратность считается в единицах шага и от минимума шкалы.
+  //
+  // Прежняя формула строила множитель как `Math.round(1 / step)` и работала
+  // только при шаге не больше единицы. Для SAT с шагом 10 множитель
+  // обращался в ноль, деление давало NaN, а любое сравнение с NaN ложно —
+  // поэтому проверка шага молча пропускала всё подряд, включая
+  // несуществующие баллы вроде 1245.
+  //
+  // Отсчёт именно от минимума: у SAT шкала начинается с 400, и кратность
+  // нулю здесь ничего не значит. Сравнение с допуском оставлено, потому что
+  // деление дробных шагов в двоичной арифметике точным не бывает.
+  const stepsFromMin = (value - scale.min) / scale.step;
+  if (Math.abs(stepsFromMin - Math.round(stepsFromMin)) > 1e-9) {
     return {
       code: 'BAD_STEP',
       message: `${what}: шаг шкалы ${scale.step}, значение ${value} ему не соответствует`,

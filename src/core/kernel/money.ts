@@ -31,10 +31,20 @@ export const money = (amountMinor: bigint | number, currency: CurrencyCode): Mon
 
 /** Из «человеческой» суммы (1 200 000 ₸) в минимальные единицы. */
 export function fromMajor(major: number, currency: CurrencyCode): Money {
+  if (!Number.isFinite(major)) {
+    throw new TypeError(`fromMajor: сумма должна быть конечным числом, получено ${major}`);
+  }
   const digits = CURRENCY_MINOR_DIGITS[currency];
   const factor = 10 ** digits;
   // Округление до минимальной единицы делается один раз, на границе ввода.
-  return money(BigInt(Math.round(major * factor)), currency);
+  //
+  // Округлять произведение напрямую нельзя: double не представляет десятичные
+  // дроби точно, и 1.005 * 100 даёт 100.49999999999999 — то есть 1,005 ₽
+  // превращались в 1,00 вместо 1,01. Сначала убираем двоичный шум, приводя
+  // произведение к 15 значащим цифрам (double гарантирует их точность),
+  // и только потом округляем.
+  const scaled = Number((major * factor).toPrecision(15));
+  return money(BigInt(Math.round(scaled)), currency);
 }
 
 export function toMajorNumber(m: Money): number {
@@ -100,7 +110,11 @@ export function convert(
       },
     };
   }
-  const rate = rates.find((r) => r.from === m.currency && r.to === to);
+  // Курс с нулевым знаменателем — это не курс. Деление bigint на ноль
+  // бросает RangeError и роняет весь подбор программ из-за одной битой
+  // строки справочника; непригодный курс должен вести себя как его
+  // отсутствие, то есть давать честное «значение неизвестно».
+  const rate = rates.find((r) => r.from === m.currency && r.to === to && r.denominator !== 0n);
   if (!rate) return { ok: false, reason: 'no_rate', from: m.currency, to };
 
   // half-up на целых числах, без промежуточного float.

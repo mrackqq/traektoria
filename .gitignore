@@ -14,3 +14,9 @@ next-env.d.ts
 # Лежат локально, в репозиторий для сдачи не идут.
 CASE2_AUDIT.md
 TZ-REVIEW.md
+
+# Сквозные проверки
+.next-e2e/
+test-results/
+playwright-report/
+design-shots/

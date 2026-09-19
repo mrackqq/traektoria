@@ -91,28 +91,44 @@ export function emptyUserState(ownerId: string): UserState {
   };
 }
 
+function asArray<T>(value: unknown): readonly T[] {
+  return Array.isArray(value) ? (value as readonly T[]) : [];
+}
+
+function asRecord<T>(value: unknown): Readonly<Record<string, T>> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return {};
+  return value as Record<string, T>;
+}
+
 /**
  * Приведение прочитанного состояния к текущей форме.
  *
  * Файлы, записанные прежней версией, не содержат новых полей. Читать их
  * как `undefined` и падать на первом обращении нельзя: сохранённые данные
  * пользователя должны переживать обновление кода.
+ *
+ * Проверяется не только наличие поля, но и его ФОРМА. Файл на диске —
+ * внешние данные: его мог испортить сбой записи, ручная правка или чужая
+ * версия кода. Поле правильного имени, но неверного типа (`progress` строкой
+ * вместо объекта) прежде проходило насквозь и роняло первого, кто обратится
+ * к нему как к объекту, — уже далеко от места настоящей ошибки.
  */
-export function normalizeUserState(raw: UserState, ownerId: string): UserState {
+export function normalizeUserState(raw: unknown, ownerId: string): UserState {
+  const source = asRecord<unknown>(raw);
+  const storedOwner = source['ownerId'];
+
   return {
-    ...emptyUserState(ownerId),
-    ...raw,
-    ownerId: raw.ownerId ?? ownerId,
-    progress: raw.progress ?? {},
-    ledger: raw.ledger ?? [],
-    audit: raw.audit ?? [],
-    outbox: raw.outbox ?? [],
-    profileRevisions: raw.profileRevisions ?? [],
-    draft: raw.draft ?? null,
-    activeGoalId: raw.activeGoalId ?? null,
+    ownerId: typeof storedOwner === 'string' && storedOwner ? storedOwner : ownerId,
+    profileRevisions: asArray<ApplicantProfileRevision>(source['profileRevisions']),
+    progress: asRecord<ProgressState>(source['progress']),
+    ledger: asArray<AppliedOperation>(source['ledger']),
+    audit: asArray<AuditEntry>(source['audit']),
+    outbox: asArray<OutboxRecord>(source['outbox']),
+    draft: (source['draft'] as ProfileDraft | null) ?? null,
+    activeGoalId: typeof source['activeGoalId'] === 'string' ? source['activeGoalId'] : null,
     // Сводка могла быть записана до появления `firstTime`: досчитываем
     // признак, ничего не переписывая на диске.
-    lastRecalc: normalizeRecalcSummary(raw.lastRecalc),
+    lastRecalc: normalizeRecalcSummary((source['lastRecalc'] as RecalcSummary | null) ?? null),
   };
 }
 

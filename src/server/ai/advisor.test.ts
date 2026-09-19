@@ -599,3 +599,93 @@ test('Схема ответа не содержит полей для число
   const serialized = JSON.stringify(Object.keys(shape));
   assert.ok(!/chance|probability|score|percent/i.test(serialized));
 });
+
+/* ------------------------------------------------------------------ */
+/* Поведение при недоступном провайдере                                */
+/* ------------------------------------------------------------------ */
+
+test('Недоступный провайдер не превращается в шторм запросов', async () => {
+  // Пока неудачи не запоминались вовсе, лежащий OpenRouter означал новый
+  // сетевой вызов на КАЖДУЮ загрузку страницы: каждый переход между
+  // разделами, каждое обновление и каждый параллельный посетитель заново
+  // ждали таймаут — ровно в тот момент, когда провайдер просит сбавить темп.
+  clearAdviceCache();
+  process.env.OPENROUTER_API_KEY = 'тестовый-ключ';
+
+  let completions = 0;
+  const restore = mockFetch((url) => {
+    if (url.includes('/models')) return jsonResponse({ data: [] });
+    completions++;
+    throw new Error('провайдер недоступен');
+  });
+
+  try {
+    const s = session();
+    for (let i = 0; i < 6; i++) {
+      const r = await getAdvice(OWNER, s, { nowMs: AT_MS + i * 1000 });
+      assert.equal(r.mode, 'rules', 'расчёт по правилам обязан показываться при любой неудаче');
+    }
+
+    assert.equal(completions, 1, `шесть загрузок страницы дали ${completions} обращений к модели`);
+  } finally {
+    restore();
+  }
+});
+
+test('Пауза после неудачи — именно пауза, а не отключение AI', async () => {
+  clearAdviceCache();
+  process.env.OPENROUTER_API_KEY = 'тестовый-ключ';
+
+  let completions = 0;
+  const restore = mockFetch((url) => {
+    if (url.includes('/models')) return jsonResponse({ data: [] });
+    completions++;
+    throw new Error('провайдер недоступен');
+  });
+
+  try {
+    const s = session();
+    await getAdvice(OWNER, s, { nowMs: AT_MS });
+    await getAdvice(OWNER, s, { nowMs: AT_MS + 30_000 });
+    assert.equal(completions, 1, 'внутри окна паузы повтора быть не должно');
+
+    await getAdvice(OWNER, s, { nowMs: AT_MS + 61_000 });
+    assert.equal(completions, 2, 'за окном попытка обязана повториться');
+  } finally {
+    restore();
+  }
+});
+
+test('Неудача не вытесняет удачный ответ другого расчёта', async () => {
+  clearAdviceCache();
+  process.env.OPENROUTER_API_KEY = 'тестовый-ключ';
+
+  const s = session();
+  const goalId = s.activeGoal!.path.id;
+  const taskId = s.route!.tasks[0]!.id;
+
+  let ok = mockFetch((url) =>
+    url.includes('/models') ? jsonResponse({ data: [] }) : completion(validPayload(goalId, taskId)),
+  );
+  const good = await getAdvice(OWNER, s, { nowMs: AT_MS });
+  ok();
+  assert.equal(good.mode, 'ai');
+
+  // Другой посетитель с недоступным провайдером не должен испортить
+  // уже сохранённый ответ первого.
+  const fail = mockFetch((url) => {
+    if (url.includes('/models')) return jsonResponse({ data: [] });
+    throw new Error('недоступен');
+  });
+  await getAdvice('другой-владелец', s, { nowMs: AT_MS + 1000 });
+  fail();
+
+  const stillOk = mockFetch(() => {
+    throw new Error('сюда ходить не должны');
+  });
+  const again = await getAdvice(OWNER, s, { nowMs: AT_MS + 2000 });
+  stillOk();
+
+  assert.equal(again.mode, 'ai', 'кеш первого владельца обязан пережить чужую неудачу');
+  assert.equal(again.cached, true);
+});

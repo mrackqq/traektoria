@@ -41,5 +41,27 @@ export async function resolve(specifier, context, next) {
     if (found) return next(pathToFileURL(found).href, context);
   }
 
-  return next(specifier, context);
+  try {
+    return await next(specifier, context);
+  } catch (err) {
+    /**
+     * Подпуть пакета без расширения.
+     *
+     * `next/cache`, `next/headers`, `next/navigation` — пакет не объявляет
+     * карту `exports`, поэтому Node ESM требует писать `next/cache.js`.
+     * Сборщик Next расширение достраивает сам, приложение пишет импорт без
+     * него, и тесты без этой ветки не могут загрузить ни один модуль,
+     * который такой подпуть импортирует.
+     */
+    const bareSubpath =
+      !relative &&
+      !specifier.startsWith('node:') &&
+      specifier.includes('/') &&
+      path.extname(specifier) === '';
+
+    if (bareSubpath && err?.code === 'ERR_MODULE_NOT_FOUND') {
+      return next(`${specifier}.js`, context);
+    }
+    throw err;
+  }
 }

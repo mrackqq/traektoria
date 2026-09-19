@@ -159,3 +159,37 @@ test('Изменение профиля меняет ключ расчёта', (
 
   assert.notEqual(base.key.inputHash, changed.key.inputHash);
 });
+
+/* ------------------------------------------------------------------ */
+/* Границы срока годности                                              */
+/* ------------------------------------------------------------------ */
+
+test('ENG-05: граница ровно в момент расчёта уже наступила и учитывается', () => {
+  // Со строгим сравнением такая граница отбрасывалась, и расчёт получал
+  // полные 15 минут мнимой годности вместо немедленного истечения.
+  const key = computeCalculationKey(
+    inputs({ boundaries: [{ atUtc: AT, reason: { kind: 'source_freshness', sourceId: 's' } }] }),
+  );
+
+  assert.equal(key.validUntil, AT);
+  assert.equal(isExpired(key, AT), true, 'уже наступившая граница обязана означать истёкший расчёт');
+});
+
+test('ENG-05: при совпадении границ причина не зависит от порядка массива', () => {
+  // Две границы с одинаковым моментом давали разный ответ на одних и тех же
+  // данных — прямое противоречие смыслу модуля воспроизводимости.
+  const tie = new Date(Date.parse(AT) + 5 * 60_000).toISOString();
+  const first = { atUtc: tie, reason: { kind: 'source_freshness' as const, sourceId: 'ПЕРВЫЙ' } };
+  const second = { atUtc: tie, reason: { kind: 'source_freshness' as const, sourceId: 'ВТОРОЙ' } };
+
+  const straight = computeCalculationKey(inputs({ boundaries: [first, second] }));
+  const reversed = computeCalculationKey(inputs({ boundaries: [second, first] }));
+
+  assert.equal(straight.validUntil, tie, 'обе границы ближе предельного возраста');
+  assert.equal(straight.validUntil, reversed.validUntil);
+  assert.deepEqual(
+    straight.validityReason,
+    reversed.validityReason,
+    'причина обязана быть одной и той же при любом порядке входного массива',
+  );
+});

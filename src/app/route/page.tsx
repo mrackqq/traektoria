@@ -169,11 +169,7 @@ export default async function RoutePage() {
         {route.feasibility.limitations.length > 0 ? (
           <div className="notice notice--warn">
             <h3>Что мешает</h3>
-            <ul className="stack-tight">
-              {route.feasibility.limitations.map((l, i) => (
-                <li key={`${l.code}-${i}`}>{l.message}</li>
-              ))}
-            </ul>
+            <Limitations limitations={route.feasibility.limitations} views={s.taskViews} />
           </div>
         ) : null}
       </section>
@@ -324,6 +320,60 @@ function ClosedOutsideRoute({
  * UX-05: у задачи доступны требуемый результат, инструкция, источник условия,
  * тип даты, зависимости и связанные цели — без перехода на другой экран.
  */
+/**
+ * Ограничения графика без повторов.
+ *
+ * Планировщик выдаёт по одному сообщению на действие, и при пяти
+ * действиях с неопределённой отсечкой человек читал пять почти
+ * одинаковых предложений подряд: «Срок „…“ известен не полностью —
+ * точный отсчёт не строится». Мысль одна, сказана пятикратно, и глаз
+ * выключается на второй строке.
+ *
+ * Сообщения ядра при этом не меняются: они нужны и в тестах, и там, где
+ * ограничение приходит поодиночке. Свёртка живёт здесь, в подаче, и
+ * названия берутся по `taskId`, а не выковыриваются из текста.
+ */
+function Limitations({
+  limitations,
+  views,
+}: {
+  limitations: readonly { readonly code: string; readonly taskId?: string; readonly message: string }[];
+  views: readonly TaskView[];
+}) {
+  const titleOf = (taskId: string | undefined) =>
+    taskId === undefined
+      ? undefined
+      : views.find((v) => v.task.id === taskId)?.task.template.title;
+
+  const unknownDeadline = limitations.filter((l) => l.code === 'DEADLINE_UNKNOWN');
+  const rest = limitations.filter((l) => l.code !== 'DEADLINE_UNKNOWN');
+  const names = unknownDeadline
+    .map((l) => titleOf(l.taskId))
+    .filter((x): x is string => x !== undefined);
+
+  // Свёртка оправдана только когда повтор действительно есть и все
+  // названия удалось разрешить: иначе человек потеряет информацию.
+  const collapse = unknownDeadline.length > 1 && names.length === unknownDeadline.length;
+
+  return (
+    <>
+      {collapse ? (
+        <p>
+          У {names.length} сроков источник не указал время или часовой пояс, поэтому точный
+          обратный отсчёт по ним не строится: {names.join(', ')}.
+        </p>
+      ) : null}
+      {(collapse ? rest : limitations).length > 0 ? (
+        <ul className="stack-tight">
+          {(collapse ? rest : limitations).map((l, i) => (
+            <li key={`${l.code}-${i}`}>{l.message}</li>
+          ))}
+        </ul>
+      ) : null}
+    </>
+  );
+}
+
 function TaskItem({
   view,
   isNext,
@@ -421,24 +471,18 @@ function TaskItem({
           ) : null}
         </ul>
 
-        <p className="task__outcome">
-          <strong>{t.template.advisory ? 'Что даст' : 'Требуемый результат'}:</strong>{' '}
-          {t.template.requiredOutcome}
-        </p>
-        {t.template.advisory ? (
-          <p className="small muted">
-            Это совет сервиса: ни одно условие приёма его не требует, и отметка здесь
-            не закрывает формальных условий и не мешает подать заявление.
-          </p>
-        ) : null}
-        <p className="task__outcome muted">{t.template.instruction}</p>
-        <p className="small muted">
-          <strong>Готово, когда:</strong> {t.template.completionCriterion}
-        </p>
+        {/*
+          Строка смысла плюс срок. Раньше каждая карточка вываливала восемь
+          блоков сразу: требуемый результат, инструкцию, критерий готовности,
+          четыре даты, нагрузку и связанные условия. Пять задач занимали
+          4614 пикселей, то есть по 920 на задачу, и прочитать план целиком
+          было нельзя. Подробности никуда не делись, они за раскрытием.
 
+          Управление остаётся на виду намеренно: это то, ради чего человек
+          пришёл на экран, и прятать его за лишним нажатием нельзя.
+        */}
         <p className="task__meta">
           <span>Начать: {formatPlainDateRu(t.earliestStart)}</span>
-          <span>Закончить: {formatPlainDateRu(t.earliestFinish)}</span>
           {t.latestFinish ? (
             <span>
               Крайний срок{view.flags.dueUncertain ? ' (приблизительный)' : ''}:{' '}
@@ -448,34 +492,55 @@ function TaskItem({
             <span>Крайний срок не определён источником</span>
           )}
           {t.slackDays !== null ? <span>Резерв: {t.slackDays} дн.</span> : null}
-          {t.sessionDate ? <span>Сессия: {formatPlainDateRu(t.sessionDate)}</span> : null}
         </p>
 
         <details className="task-details">
-          <summary>Нагрузка и связанные условия <Icon name="chevron" size={13} /></summary>
-        <p className="task__meta">
-          <span>
-            Трудозатраты: {t.template.effortHours.min}–{t.template.effortHours.max} ч
-          </span>
-          <span>
-            Длительность: {t.template.durationDays.min}–{t.template.durationDays.max} дн.
-          </span>
-          {t.template.externalWaitDays.max > 0 ? (
-            <span>
-              Внешнее ожидание: {t.template.externalWaitDays.min}–
-              {t.template.externalWaitDays.max} дн.
-            </span>
+          <summary>
+            {t.template.advisory ? 'Что даст и как сделать' : 'Что нужно и как сделать'}
+            <Icon name="chevron" size={13} />
+          </summary>
+
+          <p className="task__outcome">
+            <strong>{t.template.advisory ? 'Что даст' : 'Требуемый результат'}:</strong>{' '}
+            {t.template.requiredOutcome}
+          </p>
+          {t.template.advisory ? (
+            <p className="small muted">
+              Это совет сервиса: ни одно условие приёма его не требует, и отметка здесь
+              не закрывает формальных условий и не мешает подать заявление.
+            </p>
           ) : null}
-        </p>
+          <p className="task__outcome muted">{t.template.instruction}</p>
+          <p className="small muted">
+            <strong>Готово, когда:</strong> {t.template.completionCriterion}
+            {needsResult && view.state.status !== 'done'
+              ? ' Закрывается подтверждённым результатом со значением и происхождением: отметка «выполнено» сама по себе условие не закроет.'
+              : ''}
+          </p>
 
-        <p className="task__meta">
-          <span>Цель: {goalTitle}</span>
-          {closes.length > 0 ? <span>Закрывает условие: {closes.join(', ')}</span> : null}
-          {t.dependsOn.length > 0 ? <span>Зависит от: {t.dependsOn.length} действ.</span> : null}
-        </p>
+          <p className="task__meta">
+            <span>Закончить: {formatPlainDateRu(t.earliestFinish)}</span>
+            {t.sessionDate ? <span>Сессия: {formatPlainDateRu(t.sessionDate)}</span> : null}
+            <span>
+              Трудозатраты: {t.template.effortHours.min}–{t.template.effortHours.max} ч
+            </span>
+            <span>
+              Длительность: {t.template.durationDays.min}–{t.template.durationDays.max} дн.
+            </span>
+            {t.template.externalWaitDays.max > 0 ? (
+              <span>
+                Внешнее ожидание: {t.template.externalWaitDays.min}–
+                {t.template.externalWaitDays.max} дн.
+              </span>
+            ) : null}
+          </p>
+
+          <p className="task__meta">
+            <span>Цель: {goalTitle}</span>
+            {closes.length > 0 ? <span>Закрывает условие: {closes.join(', ')}</span> : null}
+            {t.dependsOn.length > 0 ? <span>Зависит от: {t.dependsOn.length} действ.</span> : null}
+          </p>
         </details>
-
-        <hr className="divider" style={{ margin: 'var(--s-3) 0' }} />
 
         <TaskControls
           goalId={goalId}
@@ -497,12 +562,11 @@ function TaskItem({
           />
         ) : null}
 
-        {needsResult && view.state.status !== 'done' ? (
-          <p className="small muted">
-            Это действие закрывается подтверждённым результатом со значением и происхождением:
-            отметка «выполнено» сама по себе условие не закроет.
-          </p>
-        ) : null}
+        {/*
+          Пояснение про подтверждённый результат одинаково у всех таких
+          действий. Под каждой карточкой это шум; в раскрытии оно рядом с
+          критерием готовности, где его и ищут.
+        */}
       </div>
     </li>
   );
